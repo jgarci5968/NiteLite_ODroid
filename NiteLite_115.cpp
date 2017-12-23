@@ -64,7 +64,7 @@ int main(int argc, char* argv[])
                 CBaslerUsbInstantCamera Camera( CTlFactory::GetInstance().CreateFirstDevice());
                 Camera.Open();
                 Camera.PixelFormat.SetValue(PixelFormat_BayerRG12);
-                Camera.ExposureTime.SetValue(16000);
+                Camera.ExposureTime.SetValue(16000); // in microseconds 
                 if ( Camera.GrabOne( 1000, ptrGrabResult))
                 {
                     // The pylon grab result smart pointer classes provide a cast operator to the IImage
