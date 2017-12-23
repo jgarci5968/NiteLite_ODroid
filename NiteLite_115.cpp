@@ -37,6 +37,7 @@
 
 // Namespace for using pylon objects.
 using namespace Pylon;
+using namespace Basler_UsbCameraParams;
 using namespace GenApi;
 
 // Namespace for using cout.
@@ -61,10 +62,9 @@ int main(int argc, char* argv[])
                 // This smart pointer will receive the grab result data.
                 CGrabResultPtr ptrGrabResult;
                 CBaslerUsbInstantCamera Camera( CTlFactory::GetInstance().CreateFirstDevice());
-                //Camera.Open();
-                //INodeMap &control = Camera.GetNodeMap();
-                //CEnumerationPtr(control.GetNode("PixelFormat"))->FromString("BayerRG12");
+                Camera.Open();
                 Camera.PixelFormat.SetValue(PixelFormat_BayerRG12);
+                Camera.ExposureTime.SetValue(16000);
                 if ( Camera.GrabOne( 1000, ptrGrabResult))
                 {
                     // The pylon grab result smart pointer classes provide a cast operator to the IImage
