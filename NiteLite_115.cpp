@@ -31,7 +31,9 @@
 //// Include files to use the PYLON API.
 #include <pylon/PylonIncludes.h>
 #include "../include/SampleImageCreator.h"
-
+//#include <GenApi/IEnumerationT.h> // Jeff Junk
+#include <pylon/PixelType.h>      //More Jeff Junk
+#include <pylon/usb/BaslerUsbInstantCamera.h>
 // Namespace for using pylon objects.
 using namespace Pylon;
 using namespace GenApi;
@@ -50,8 +52,8 @@ int main(int argc, char* argv[])
     try
     {
         // Define some constants.
-        const uint32_t cWidth = 640;
-        const uint32_t cHeight = 480;
+//        const uint32_t cWidth = 640;
+//        const uint32_t cHeight = 480;
 
         // Saving images using the CImagePersistence class.
 //        {
@@ -115,8 +117,10 @@ int main(int argc, char* argv[])
             {
                 // This smart pointer will receive the grab result data.
                 CGrabResultPtr ptrGrabResult;
-                CInstantCamera Camera( CTlFactory::GetInstance().CreateFirstDevice());
-
+                CBaslerUsbInstantCamera Camera( CTlFactory::GetInstance().CreateFirstDevice());
+                Camera.Open();
+                INodeMap &control = Camera.GetNodeMap();
+                CEnumerationPtr(control.GetNode("PixelFormat"))->FromString("BayerRG12");
                 if ( Camera.GrabOne( 1000, ptrGrabResult))
                 {
                     // The pylon grab result smart pointer classes provide a cast operator to the IImage
@@ -124,6 +128,7 @@ int main(int argc, char* argv[])
                     // function that saves an image to disk.
                     CImagePersistence::Save( ImageFileFormat_Tiff, "GrabbedImage.tiff", ptrGrabResult);
                 }
+                Camera.Close();
             }
             catch (const GenericException &e)
             {
