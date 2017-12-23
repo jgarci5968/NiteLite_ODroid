@@ -30,10 +30,11 @@
 //
 //// Include files to use the PYLON API.
 #include <pylon/PylonIncludes.h>
-#include "../include/SampleImageCreator.h"
+//#include "../include/SampleImageCreator.h"
 //#include <GenApi/IEnumerationT.h> // Jeff Junk
-#include <pylon/PixelType.h>      //More Jeff Junk
+//#include <pylon/PixelType.h>      //More Jeff Junk
 #include <pylon/usb/BaslerUsbInstantCamera.h>
+
 // Namespace for using pylon objects.
 using namespace Pylon;
 using namespace GenApi;
@@ -51,64 +52,6 @@ int main(int argc, char* argv[])
 
     try
     {
-        // Define some constants.
-//        const uint32_t cWidth = 640;
-//        const uint32_t cHeight = 480;
-
-        // Saving images using the CImagePersistence class.
-//        {
-//            // Create a sample image.
-//            CPylonImage imageRGB16packed = SampleImageCreator::CreateMandelbrotFractal( PixelType_RGB16packed, cWidth, cHeight);
-//
-//            // If required the image is automatically converted to a new image and then saved.
-//            // An image with a bit depth higher than 8 Bit is stored with 16 Bit bit depth
-//            // if supported by the image file format. In this case the pixel data is MSB aligned.
-//            // If more control over the conversion is required then the CImageFormatConverter class
-//            // can be used to convert the input image before saving it (not shown).
-//            CImagePersistence::Save( ImageFileFormat_Tiff, "MandelbrotFractal.tiff", imageRGB16packed);
-//
-//            cout << "The image " << (CImagePersistence::CanSaveWithoutConversion( ImageFileFormat_Tiff, imageRGB16packed) ? "can" : "can not")
-//                << " be saved without conversion as tiff." << endl;
-//
-//
-//            // Additionally it is possible to save image data that is not held by an image class.
-//            // For demonstration purposes only, the buffer and the image properties from the sample image are used here.
-//            EPixelType pixelType = imageRGB16packed.GetPixelType();
-//            uint32_t width = imageRGB16packed.GetWidth();
-//            uint32_t height = imageRGB16packed.GetHeight();
-//            size_t paddingX = imageRGB16packed.GetPaddingX();
-//            EImageOrientation orientation = imageRGB16packed.GetOrientation();
-//            size_t bufferSize = imageRGB16packed.GetImageSize();
-//            void* buffer = imageRGB16packed.GetBuffer();
-//
-//            CImagePersistence::Save(
-//                ImageFileFormat_Png,
-//                "MandelbrotFractal.png",
-//                buffer,
-//                bufferSize,
-//                pixelType,
-//                width,
-//                height,
-//                paddingX,
-//                orientation);
-//        }
-//
-//
-//        // Loading images.
-//        {
-//            // Create pylon images.
-//            CPylonImage imageRGB16packedFromTiff;
-//            CPylonImage imageBGR8packedFromBmp;
-//
-//            // Load the tiff image directly via the ImageFile interface.
-//            CImagePersistence::Load( "MandelbrotFractal.tiff", imageRGB16packedFromTiff);
-//            cout << "The pixel type of the image is " << (imageRGB16packedFromTiff.GetPixelType() == PixelType_RGB16packed ? "" : "not ")
-//                << "RGB16packed." << endl;
-//
-//
-//        }
-//
-//
         // Saving grabbed images.
         {
             // Try to get a grab result.
@@ -118,9 +61,10 @@ int main(int argc, char* argv[])
                 // This smart pointer will receive the grab result data.
                 CGrabResultPtr ptrGrabResult;
                 CBaslerUsbInstantCamera Camera( CTlFactory::GetInstance().CreateFirstDevice());
-                Camera.Open();
-                INodeMap &control = Camera.GetNodeMap();
-                CEnumerationPtr(control.GetNode("PixelFormat"))->FromString("BayerRG12");
+                //Camera.Open();
+                //INodeMap &control = Camera.GetNodeMap();
+                //CEnumerationPtr(control.GetNode("PixelFormat"))->FromString("BayerRG12");
+                Camera.PixelFormat.SetValue(PixelFormat_BayerRG12);
                 if ( Camera.GrabOne( 1000, ptrGrabResult))
                 {
                     // The pylon grab result smart pointer classes provide a cast operator to the IImage
