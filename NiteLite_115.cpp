@@ -40,7 +40,9 @@ using namespace GenApi;
 // Namespace for using cout.
 using namespace std;
 
-int main(int argc, char* argv[])
+
+//int main(int argc, char* argv[])
+int main()
 {
     // The exit code of the sample application.
     int exitCode = 0;
