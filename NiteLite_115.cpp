@@ -48,6 +48,7 @@ int main(int argc, char* argv[])
     // Before using any pylon methods, the pylon runtime must be initialized. 
     PylonInitialize();
 
+    int exposure_time=50000;
     try
     {
         // Saving grabbed images.
@@ -66,7 +67,7 @@ int main(int argc, char* argv[])
 		
 
 		// take an image
-                Camera.ExposureTime.SetValue(50000); // in microseconds 
+                Camera.ExposureTime.SetValue(exposure_time); // in microseconds 
                 if ( Camera.GrabOne( 1000, ptrGrabResult))
                 {
                     // The pylon grab result smart pointer classes provide a cast operator to the IImage
@@ -76,7 +77,8 @@ int main(int argc, char* argv[])
                 }
 
 		// take another image
-                Camera.ExposureTime.SetValue(100000); // in microseconds 
+		exposure_time=100000;
+                Camera.ExposureTime.SetValue(exposure_time); // in microseconds 
                 if ( Camera.GrabOne( 1000, ptrGrabResult))
                 {
                     // The pylon grab result smart pointer classes provide a cast operator to the IImage
