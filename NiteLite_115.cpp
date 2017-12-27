@@ -30,9 +30,6 @@
 //
 //// Include files to use the PYLON API.
 #include <pylon/PylonIncludes.h>
-//#include "../include/SampleImageCreator.h"
-//#include <GenApi/IEnumerationT.h> // Jeff Junk
-//#include <pylon/PixelType.h>      //More Jeff Junk
 #include <pylon/usb/BaslerUsbInstantCamera.h>
 
 // Namespace for using pylon objects.
@@ -62,16 +59,32 @@ int main(int argc, char* argv[])
                 // This smart pointer will receive the grab result data.
                 CGrabResultPtr ptrGrabResult;
                 CBaslerUsbInstantCamera Camera( CTlFactory::GetInstance().CreateFirstDevice());
+
                 Camera.Open();
                 Camera.PixelFormat.SetValue(PixelFormat_BayerRG12);
-                Camera.ExposureTime.SetValue(16000); // in microseconds 
+
+		
+
+		// take an image
+                Camera.ExposureTime.SetValue(50000); // in microseconds 
                 if ( Camera.GrabOne( 1000, ptrGrabResult))
                 {
                     // The pylon grab result smart pointer classes provide a cast operator to the IImage
                     // interface. This makes it possible to pass a grab result directly to the
                     // function that saves an image to disk.
-                    CImagePersistence::Save( ImageFileFormat_Tiff, "GrabbedImage.tiff", ptrGrabResult);
+                    CImagePersistence::Save( ImageFileFormat_Tiff, "GrabbedImage_1.tiff", ptrGrabResult);
                 }
+
+		// take another image
+                Camera.ExposureTime.SetValue(100000); // in microseconds 
+                if ( Camera.GrabOne( 1000, ptrGrabResult))
+                {
+                    // The pylon grab result smart pointer classes provide a cast operator to the IImage
+                    // interface. This makes it possible to pass a grab result directly to the
+                    // function that saves an image to disk.
+                    CImagePersistence::Save( ImageFileFormat_Tiff, "GrabbedImage_2.tiff", ptrGrabResult);
+                }
+
                 Camera.Close();
             }
             catch (const GenericException &e)
