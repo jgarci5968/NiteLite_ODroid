@@ -69,13 +69,16 @@ int main()
 
 		
 
-		// take an image
-		
+		// take 10 images
+
+		for(int idx = 1; idx <= 10; idx++)
+	        {
+	
 		exposure_time = 50000;
 
 		// stolen from thub.com/ellenschallig/internship/GrabImage.cpp
 		ostringstream filename;
-		filename << "image_1_" << exposure_time << ".tiff";
+		filename << "image_" << exposure_time << "_" << idx << ".tiff";
 		gcstring tmp = filename.str().c_str();
 		// End of theft
 
@@ -88,6 +91,9 @@ int main()
                     //CImagePersistence::Save( ImageFileFormat_Tiff, "GrabbedImage_1.tiff", ptrGrabResult);
                     CImagePersistence::Save( ImageFileFormat_Tiff, tmp, ptrGrabResult);
                 }
+
+
+		} // end of idx for loop
 
 		// take another image
 		exposure_time=100000;
