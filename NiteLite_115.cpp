@@ -31,11 +31,12 @@
 //// Include files to use the PYLON API.
 #include <pylon/PylonIncludes.h>
 #include <pylon/usb/BaslerUsbInstantCamera.h>
+#include <sstream>
 
 // Namespace for using pylon objects.
 using namespace Pylon;
-using namespace Basler_UsbCameraParams;
 using namespace GenApi;
+using namespace Basler_UsbCameraParams;
 
 // Namespace for using cout.
 using namespace std;
@@ -50,7 +51,7 @@ int main()
     // Before using any pylon methods, the pylon runtime must be initialized. 
     PylonInitialize();
 
-    int exposure_time=50000;
+    int exposure_time=0;
     try
     {
         // Saving grabbed images.
@@ -69,13 +70,23 @@ int main()
 		
 
 		// take an image
+		
+		exposure_time = 50000;
+
+		// stolen from thub.com/ellenschallig/internship/GrabImage.cpp
+		ostringstream filename;
+		filename << "image_1_" << exposure_time << ".tiff";
+		gcstring tmp = filename.str().c_str();
+		// End of theft
+
                 Camera.ExposureTime.SetValue(exposure_time); // in microseconds 
                 if ( Camera.GrabOne( 1000, ptrGrabResult))
                 {
                     // The pylon grab result smart pointer classes provide a cast operator to the IImage
                     // interface. This makes it possible to pass a grab result directly to the
                     // function that saves an image to disk.
-                    CImagePersistence::Save( ImageFileFormat_Tiff, "GrabbedImage_1.tiff", ptrGrabResult);
+                    //CImagePersistence::Save( ImageFileFormat_Tiff, "GrabbedImage_1.tiff", ptrGrabResult);
+                    CImagePersistence::Save( ImageFileFormat_Tiff, tmp, ptrGrabResult);
                 }
 
 		// take another image
