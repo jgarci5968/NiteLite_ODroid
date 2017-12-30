@@ -33,8 +33,8 @@
 #include <pylon/usb/BaslerUsbInstantCamera.h>
 #include <sstream> // needed for filename 
 
-#include <iostream>
-#include <ctime>
+#include <iostream> // added for time stuff`
+#include <ctime>    // ditto!
 
 // Namespace for using pylon objects.
 using namespace Pylon;
@@ -45,11 +45,12 @@ using namespace Basler_UsbCameraParams;
 using namespace std;
 
 
-//int main(int argc, char* argv[])
+//int main(int argc, char* argv[]) // This was included in the original file from Basler
 int main()
 {
 
     // Swipped from  https://stackoverflow.com/questions/16357999/current-date-and-time-as-string
+    // This all looks like a good candiate for a function. 
     time_t rawtime;
     struct tm * timeinfo;
     char buffer[80];
@@ -57,7 +58,7 @@ int main()
     time (&rawtime);
     timeinfo = localtime(&rawtime);
 
-    strftime(buffer,sizeof(buffer),"%d-%m-%Y_%H:%M:%S.%f",timeinfo);
+    strftime(buffer,sizeof(buffer),"%d-%m-%Y_%H:%M:%S",timeinfo);
     std::string image_time(buffer);
 
     std::cout << image_time;
@@ -97,7 +98,7 @@ int main()
 
 		// stolen from github.com/ellenschallig/internship/GrabImage.cpp
 		ostringstream filename;
-		filename << "image_" << image_time << "_" <<  exposure_time << "_" << idx << ".tiff";
+		filename << "/opt/pylon5/Samples/C++/NiteLite_115/image_" << image_time << "_" <<  exposure_time << "_" << idx << ".tiff";
 		gcstring tmp = filename.str().c_str();
 		// End of theft
 
@@ -112,19 +113,50 @@ int main()
                 }
 
 
-		} // end of idx for loop
+		} // end of 50000us exposure idx for loop
 
-		// take another image
+		// take another image set at 100ms
+		for(int idx = 1; idx <= 2; idx++)
+                { 
 		exposure_time=100000;
+
+		// stolen from github.com/ellenschallig/internship/GrabImage.cpp
+		ostringstream filename;
+		filename << "/opt/pylon5/Samples/C++/NiteLite_115/image_" << image_time << "_" <<  exposure_time << "_" << idx << ".tiff";
+		gcstring tmp = filename.str().c_str();
+		// End of theft
+
                 Camera.ExposureTime.SetValue(exposure_time); // in microseconds 
+                
                 if ( Camera.GrabOne( 1000, ptrGrabResult))
                 {
                     // The pylon grab result smart pointer classes provide a cast operator to the IImage
                     // interface. This makes it possible to pass a grab result directly to the
                     // function that saves an image to disk.
-                    CImagePersistence::Save( ImageFileFormat_Tiff, "GrabbedImage_2.tiff", ptrGrabResult);
+                    CImagePersistence::Save( ImageFileFormat_Tiff,tmp , ptrGrabResult);
                 }
+                } // End of idx for loop
 
+
+		// take one more at 250ms 
+
+		exposure_time=500000;
+
+		// stolen from github.com/ellenschallig/internship/GrabImage.cpp
+		ostringstream filename;
+		filename << "/opt/pylon5/Samples/C++/NiteLite_115/image_" << image_time << "_" <<  exposure_time << "_" << "1" << ".tiff";
+		gcstring tmp = filename.str().c_str();
+		// End of theft
+
+                Camera.ExposureTime.SetValue(exposure_time); // in microseconds 
+                
+                if ( Camera.GrabOne( 1000, ptrGrabResult))
+                {
+                    // The pylon grab result smart pointer classes provide a cast operator to the IImage
+                    // interface. This makes it possible to pass a grab result directly to the
+                    // function that saves an image to disk.
+                    CImagePersistence::Save( ImageFileFormat_Tiff,tmp , ptrGrabResult);
+                }
                 Camera.Close();
             }
             catch (const GenericException &e)
@@ -144,8 +176,8 @@ int main()
     }
 
     // Comment the following two lines to disable waiting on exit.
-    cerr << endl << "Press Enter to exit." << endl;
-    while( cin.get() != '\n');
+//    cerr << endl << "Press Enter to exit." << endl;
+//    while( cin.get() != '\n');
 
     // Releases all pylon resources. 
     PylonTerminate(); 
