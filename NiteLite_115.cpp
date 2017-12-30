@@ -31,7 +31,10 @@
 //// Include files to use the PYLON API.
 #include <pylon/PylonIncludes.h>
 #include <pylon/usb/BaslerUsbInstantCamera.h>
-#include <sstream>
+#include <sstream> // needed for filename 
+
+#include <iostream>
+#include <ctime>
 
 // Namespace for using pylon objects.
 using namespace Pylon;
@@ -45,6 +48,22 @@ using namespace std;
 //int main(int argc, char* argv[])
 int main()
 {
+
+    // Swipped from  https://stackoverflow.com/questions/16357999/current-date-and-time-as-string
+    time_t rawtime;
+    struct tm * timeinfo;
+    char buffer[80];
+
+    time (&rawtime);
+    timeinfo = localtime(&rawtime);
+
+    strftime(buffer,sizeof(buffer),"%d-%m-%Y_%H:%M:%S.%f",timeinfo);
+    std::string image_time(buffer);
+
+    std::cout << image_time;
+    // end of theft 
+
+
     // The exit code of the sample application.
     int exitCode = 0;
 
@@ -76,9 +95,9 @@ int main()
 	
 		exposure_time = 50000;
 
-		// stolen from thub.com/ellenschallig/internship/GrabImage.cpp
+		// stolen from github.com/ellenschallig/internship/GrabImage.cpp
 		ostringstream filename;
-		filename << "image_" << exposure_time << "_" << idx << ".tiff";
+		filename << "image_" << image_time << "_" <<  exposure_time << "_" << idx << ".tiff";
 		gcstring tmp = filename.str().c_str();
 		// End of theft
 
