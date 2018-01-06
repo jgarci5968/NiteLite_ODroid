@@ -45,60 +45,13 @@ using namespace Basler_UsbCameraParams;
 using namespace std;
 
 
-//int main(int argc, char* argv[]) // This was included in the original file from Basler
-int main()
-{
+void take_exposures(CBaslerUsbInstantCamera &Camera, int t, int n, int exposure_time) {
+	// This smart pointer will receive the grab result data.
+	CGrabResultPtr ptrGrabResult;
 
-    // Swipped from  https://stackoverflow.com/questions/16357999/current-date-and-time-as-string
-    // This all looks like a good candiate for a function. 
-    time_t rawtime;
-    struct tm * timeinfo;
-    char buffer[80];
-
-    time (&rawtime);
-    timeinfo = localtime(&rawtime);
-
-    strftime(buffer,sizeof(buffer),"%H%M%S",timeinfo);
-    std::string image_time(buffer);
-
-    std::cout << image_time;
-    // end of theft 
-
-	clock_t t; 
-	t = clock();   		
-
-    // The exit code of the sample application.
-    int exitCode = 0;
-
-    // Before using any pylon methods, the pylon runtime must be initialized. 
-    PylonInitialize();
-
-    int exposure_time=0;
-    try
-    {
-        // Saving grabbed images.
-        {
-            // Try to get a grab result.
-            cout << endl << "Waiting for an image to be grabbed." << endl;
-            try
-            {
-                // This smart pointer will receive the grab result data.
-                CGrabResultPtr ptrGrabResult;
-                CBaslerUsbInstantCamera Camera( CTlFactory::GetInstance().CreateFirstDevice());
-
-                Camera.Open();
-                Camera.PixelFormat.SetValue(PixelFormat_BayerRG12);
-
-		
-
-		// take 10 images
-
-		for(int idx = 1; idx <= 10; idx++)
-	        {
-	
-		exposure_time = 50000;
-
-
+	cout << "n = " << n << ", exposure = " << exposure_time << "\n";
+	for(int idx = 1; idx <= n; idx++)
+	{ 
 		// stolen from github.com/ellenschallig/internship/GrabImage.cpp
 		ostringstream filename1;
 		filename1 << "image_" << t << "_" <<  exposure_time << "_" << idx << ".raw";
@@ -106,82 +59,72 @@ int main()
 		
 		ostringstream filename2;
 		filename2 << "image_" << t << "_" <<  exposure_time << "_" << idx << ".tiff";
-                gcstring filename_tiff = filename2.str().c_str();
-
-		// End of theft
-		
-		
-                Camera.ExposureTime.SetValue(exposure_time); // in microseconds 
-                if ( Camera.GrabOne( 1000, ptrGrabResult))
-                {
-                    // The pylon grab result smart pointer classes provide a cast operator to the IImage
-                    // interface. This makes it possible to pass a grab result directly to the
-                    // function that saves an image to disk.
-                    CImagePersistence::Save( ImageFileFormat_Tiff, filename_tiff, ptrGrabResult);
-                    CImagePersistence::Save( ImageFileFormat_Raw, filename_raw, ptrGrabResult);
-  		}
-
-
-	} // end of 50000us exposure idx for loop
-
-		// take another image set at 100ms
-		for(int idx = 1; idx <= 2; idx++)
-                { 
-		exposure_time=100000;
-
-		// stolen from github.com/ellenschallig/internship/GrabImage.cpp
-		ostringstream filename1;
-		filename1 << "image_" << t << "_" <<  exposure_time << "_" << idx << ".raw";
-		gcstring filename_raw = filename1.str().c_str();
-		
-		ostringstream filename2;
-                filename2 << "image_" << t << "_" <<  exposure_time << "_" << idx << ".tiff";
-                gcstring filename_tiff = filename2.str().c_str();
-
-
-
+		gcstring filename_tiff = filename2.str().c_str();
 		// End of theft
 
-                Camera.ExposureTime.SetValue(exposure_time); // in microseconds 
-                
-                if ( Camera.GrabOne( 1000, ptrGrabResult))
-                {
-                    // The pylon grab result smart pointer classes provide a cast operator to the IImage
-                    // interface. This makes it possible to pass a grab result directly to the
-                    // function that saves an image to disk.
-                    CImagePersistence::Save(ImageFileFormat_Tiff, filename_tiff, ptrGrabResult);
-                    CImagePersistence::Save(ImageFileFormat_Raw, filename_raw, ptrGrabResult);
-                }
-                } // End of idx for loop
+		Camera.ExposureTime.SetValue(exposure_time); // in microseconds 
+	       
+		if ( Camera.GrabOne( 1000, ptrGrabResult))
+		{
+			// The pylon grab result smart pointer classes provide a cast operator to the IImage
+			// interface. This makes it possible to pass a grab result directly to the
+			// function that saves an image to disk.
+			CImagePersistence::Save(ImageFileFormat_Tiff, filename_tiff, ptrGrabResult);
+			//CImagePersistence::Save(ImageFileFormat_Raw, filename_raw, ptrGrabResult);
+
+			//cout << ".\n";
+		}
+
+	} // End of idx for loop
+}
 
 
-		// take one more at 50ms 
-
-		exposure_time=500000;
-
-		// stolen from github.com/ellenschallig/internship/GrabImage.cpp
-		ostringstream filename;
-		filename << "image_" << t << "_" <<  exposure_time << "_" << "1" << ".raw";
-		gcstring filename_raw = filename.str().c_str();
-
-		ostringstream filename2;
-                filename2 << "image_" << t << "_" <<  exposure_time << "_" << "1" << ".tiff";
-                gcstring filename_tiff = filename2.str().c_str();
+//int main(int argc, char* argv[]) // This was included in the original file from Basler
+int main()
+{
 
 
-		// End of theft
+   // Swipped from  https://stackoverflow.com/questions/16357999/current-date-and-time-as-string
+   // This all looks like a good candiate for a function. 
+   time_t rawtime;
+   struct tm * timeinfo;
+   char buffer[80];
 
-                Camera.ExposureTime.SetValue(exposure_time); // in microseconds 
-                
-                if ( Camera.GrabOne( 1000, ptrGrabResult))
-                {
-                    // The pylon grab result smart pointer classes provide a cast operator to the IImage
-                    // interface. This makes it possible to pass a grab result directly to the
-                    // function that saves an image to disk.
-                    CImagePersistence::Save( ImageFileFormat_Tiff, filename_tiff, ptrGrabResult);
-		    CImagePersistence::Save( ImageFileFormat_Raw, filename_raw, ptrGrabResult);
-                }
-                Camera.Close();
+   time (&rawtime);
+   timeinfo = localtime(&rawtime);
+
+   strftime(buffer,sizeof(buffer),"%H%M%S",timeinfo);
+   std::string image_time(buffer);
+
+   std::cout << image_time;
+   // end of theft 
+
+       clock_t t; 
+       t = clock();   		
+
+   // The exit code of the sample application.
+   int exitCode = 0;
+
+   // Before using any pylon methods, the pylon runtime must be initialized. 
+   PylonInitialize();
+
+   int exposure_time=0;
+   try
+   {
+           // Try to get a grab result.
+           cout << endl << "Waiting for an image to be grabbed." << endl;
+           try
+           {
+		CBaslerUsbInstantCamera Camera( CTlFactory::GetInstance().CreateFirstDevice());
+
+		Camera.Open();
+		Camera.PixelFormat.SetValue(PixelFormat_BayerRG12);
+
+		take_exposures(Camera, t, 10, 50000);
+		take_exposures(Camera, t, 2, 100000);
+		take_exposures(Camera, t, 1, 500000);
+
+		Camera.Close();
             }
             catch (const GenericException &e)
             {
@@ -189,7 +132,6 @@ int main()
                 cerr << "Could not grab an image: " << endl
                     << e.GetDescription() << endl;
             }
-        }
     }
     catch (const GenericException &e)
     {
