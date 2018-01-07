@@ -70,7 +70,7 @@ void take_exposures(CBaslerUsbInstantCamera &Camera, int t, int n, int exposure_
 			// interface. This makes it possible to pass a grab result directly to the
 			// function that saves an image to disk.
 			CImagePersistence::Save(ImageFileFormat_Tiff, filename_tiff, ptrGrabResult);
-			//CImagePersistence::Save(ImageFileFormat_Raw, filename_raw, ptrGrabResult);
+			CImagePersistence::Save(ImageFileFormat_Raw, filename_raw, ptrGrabResult);
 
 			//cout << ".\n";
 		}
@@ -120,8 +120,9 @@ int main()
 		Camera.Open();
 		Camera.PixelFormat.SetValue(PixelFormat_BayerRG12);
 
-		take_exposures(Camera, t, 10, 50000);
-		take_exposures(Camera, t, 2, 100000);
+		take_exposures(Camera, t, 5, 50000);
+		take_exposures(Camera, t, 1, 100000);
+		take_exposures(Camera, t, 1, 250000);
 		take_exposures(Camera, t, 1, 500000);
 
 		Camera.Close();
