@@ -93,14 +93,14 @@ int main()
    time (&rawtime);
    timeinfo = localtime(&rawtime);
 
-   strftime(buffer,sizeof(buffer),"%H%M%S",timeinfo);
+   strftime(buffer, sizeof(buffer), "%H:%M:%S", timeinfo);
    std::string image_time(buffer);
 
-   std::cout << image_time;
+   std::cout << image_time << " Waiting for an image to be grabbed." << endl;
    // end of theft 
 
-       clock_t t; 
-       t = clock();   		
+   clock_t t; 
+   t = clock();   		
 
    // The exit code of the sample application.
    int exitCode = 0;
@@ -112,7 +112,6 @@ int main()
    try
    {
            // Try to get a grab result.
-           cout << endl << "Waiting for an image to be grabbed." << endl;
            try
            {
 		CBaslerUsbInstantCamera Camera( CTlFactory::GetInstance().CreateFirstDevice());
