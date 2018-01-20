@@ -44,21 +44,29 @@ using namespace Basler_UsbCameraParams;
 // Namespace for using cout.
 using namespace std;
 
+const string filepath = string("/home/odroid/Pictures/");
 
+ 
 void take_exposures(CBaslerUsbInstantCamera &Camera, int t, int n, int exposure_time) {
 	// This smart pointer will receive the grab result data.
 	CGrabResultPtr ptrGrabResult;
 
-	cout << "n = " << n << ", exposure = " << exposure_time << "\n";
+	double internal_temp = Camera.DeviceTemperature.GetValue();
+
+	cout << "n = " << n << ", exposure = " << exposure_time << ", internal_temp = " << internal_temp << "\n";
 	for(int idx = 1; idx <= n; idx++)
 	{ 
 		// stolen from github.com/ellenschallig/internship/GrabImage.cpp
+		ostringstream base_filename;
+		base_filename << "image_" << t << "_" << exposure_time << "_" << idx;
+		cout << base_filename.str() << " ";
+
 		ostringstream filename1;
-		filename1 << "image_" << t << "_" <<  exposure_time << "_" << idx << ".raw";
+		filename1 << filepath << base_filename.str() << ".raw";
 		gcstring filename_raw = filename1.str().c_str();
 		
 		ostringstream filename2;
-		filename2 << "image_" << t << "_" <<  exposure_time << "_" << idx << ".tiff";
+		filename2 << filepath << base_filename.str() <<  ".tiff";
 		gcstring filename_tiff = filename2.str().c_str();
 		// End of theft
 
@@ -76,6 +84,7 @@ void take_exposures(CBaslerUsbInstantCamera &Camera, int t, int n, int exposure_
 		}
 
 	} // End of idx for loop
+	cout << endl;
 }
 
 
