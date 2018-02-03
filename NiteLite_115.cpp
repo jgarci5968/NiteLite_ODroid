@@ -1,161 +1,153 @@
-// Utility_ImageLoadAndSave.cpp
-/*
-    Note: Before getting started, Basler recommends reading the Programmer's Guide topic
-    in the pylon C++ API documentation that gets installed with pylon.
-//    If you are upgrading to a higher major version of pylon, Basler also
-//    strongly recommends reading the Migration topic in the pylon C++ API documentation.
-//
-//    This sample illustrates how to load and save images.
-//
-//    The CImagePersistence class provides static functions for
-//    loading and saving images. It uses the image
-//    class related interfaces IImage and IReusableImage of pylon.
-//
-//    IImage can be used to access image properties and image buffer.
-//    Therefore, it is used when saving images. In addition to that images can also
-//    be saved by passing an image buffer and the corresponding properties.
-//
-//    The IReusableImage interface extends the IImage interface to be able to reuse
-//    the resources of the image to represent a different image. The IReusableImage
-//    interface is used when loading images.
-//
-//    The CPylonImage and CPylonBitmapImage image classes implement the
-//    IReusableImage interface. These classes can therefore be used as targets
-//    for loading images.
-//
-//    The gab result smart pointer classes provide a cast operator to the IImage
-//    interface. This makes it possible to pass a grab result directly to the
-//    function that saves images to disk.
-//*/
-//
-//// Include files to use the PYLON API.
+//	NiteLite_115.cpp
+//	This program performs one image capture cycle using the Basler USB camera.
+//	An image capture cycle consists of a sequence of images taken with varying
+//	exposures. Both raw and TIFF versions of the images are saved to a specified
+//	directory and named based on the time the image was taken, the exposure, the
+//	image number in the sequence, and the camera ID. Metadata for each image is
+//	also logged to the standard output.
+
+// System includes
+#include <sstream>
+#include <iostream>
+#include <ctime>
+#include <cstdio>
+
+// Pylon API header files
 #include <pylon/PylonIncludes.h>
 #include <pylon/usb/BaslerUsbInstantCamera.h>
-#include <sstream> // needed for filename 
 
-#include <iostream> // added for time stuff`
-#include <ctime>    // ditto!
+// System namespace
+using namespace std;
 
-// Namespace for using pylon objects.
+// Pylon and Basler namespaces
 using namespace Pylon;
 using namespace GenApi;
 using namespace Basler_UsbCameraParams;
 
-// Namespace for using cout.
-using namespace std;
 
-const string filepath = string("/home/odroid/Pictures/");
+string filepath = "/home/odroid/Pictures/";
+int CameraID = 0;
 
- 
-void take_exposures(CBaslerUsbInstantCamera &Camera, int t, int n, int exposure_time) {
+
+// Create a formatted string from the current system time
+string get_time_string()
+{
+	time_t rawtime;
+	struct tm* timeinfo;
+
+	time(&rawtime);
+	timeinfo = localtime(&rawtime);
+
+	char buffer[80];
+	strftime(buffer, sizeof(buffer), "%y%m%d_%H%M%S", timeinfo);
+	return string(buffer);
+}
+
+
+// Create a filename from the image capture parameters.
+gcstring create_filename(string timestr, int exposure, int seq, string ext)
+{
+	ostringstream filename;
+	filename << filepath << timestr << "_" << exposure << "_" << seq << "_" << CameraID << ext;
+	return gcstring(filename.str().c_str());
+}
+
+
+// Capture a sequence of images with a given exposure
+void take_exposures(CBaslerUsbInstantCamera &Camera, int exposure_time, int n)
+{
 	// This smart pointer will receive the grab result data.
 	CGrabResultPtr ptrGrabResult;
 
 	double internal_temp = Camera.DeviceTemperature.GetValue();
 
-	cout << "n = " << n << ", exposure = " << exposure_time << ", internal_temp = " << internal_temp << "\n";
 	for(int idx = 1; idx <= n; idx++)
-	{ 
-		// stolen from github.com/ellenschallig/internship/GrabImage.cpp
-		ostringstream base_filename;
-		base_filename << "image_" << t << "_" << exposure_time << "_" << idx;
-		cout << base_filename.str() << " ";
+	{
+		string timestr = get_time_string();
+		gcstring gc_filename_raw = create_filename(timestr, exposure_time, idx, ".raw");
+		gcstring gc_filename_tiff = create_filename(timestr, exposure_time, idx, ".tiff");
 
-		ostringstream filename1;
-		filename1 << filepath << base_filename.str() << ".raw";
-		gcstring filename_raw = filename1.str().c_str();
-		
-		ostringstream filename2;
-		filename2 << filepath << base_filename.str() <<  ".tiff";
-		gcstring filename_tiff = filename2.str().c_str();
-		// End of theft
+		Camera.ExposureTime.SetValue(exposure_time * 1000); // in microseconds
 
-		Camera.ExposureTime.SetValue(exposure_time); // in microseconds 
-	       
 		if ( Camera.GrabOne( 1000, ptrGrabResult))
 		{
 			// The pylon grab result smart pointer classes provide a cast operator to the IImage
 			// interface. This makes it possible to pass a grab result directly to the
 			// function that saves an image to disk.
-			CImagePersistence::Save(ImageFileFormat_Tiff, filename_tiff, ptrGrabResult);
-			CImagePersistence::Save(ImageFileFormat_Raw, filename_raw, ptrGrabResult);
-
-			//cout << ".\n";
+			CImagePersistence::Save(ImageFileFormat_Tiff, gc_filename_tiff, ptrGrabResult);
+			CImagePersistence::Save(ImageFileFormat_Raw, gc_filename_raw, ptrGrabResult);
+			cout << timestr << ", " << exposure_time << ", " << idx << ", " << CameraID << ", t=" << internal_temp << endl;
 		}
-
-	} // End of idx for loop
-	cout << endl;
+	}
 }
 
 
-//int main(int argc, char* argv[]) // This was included in the original file from Basler
-int main()
+int main(int argc, char* argv[])
 {
+	if ( argc == 1 )
+	{
+		cerr << "usage: " << argv[0] << " camera-id [path]" << endl;
+		exit(-1);
+	}
+	if ( argc > 1 )
+	{
+		CameraID = atoi(argv[1]);
+	}
+	if ( argc > 2 )
+	{
+		FILE* fp = fopen(argv[2], "r");
+		if ( fp == NULL )
+		{
+			perror(argv[2]);
+			exit(-1);
+		}
+		else
+			fclose(fp);
+		filepath = argv[2];
+	}
 
 
-   // Swipped from  https://stackoverflow.com/questions/16357999/current-date-and-time-as-string
-   // This all looks like a good candiate for a function. 
-   time_t rawtime;
-   struct tm * timeinfo;
-   char buffer[80];
+	string timestr = get_time_string();
+	cerr << timestr << " filepath: " << filepath << ", CameraID=" << CameraID << endl;
 
-   time (&rawtime);
-   timeinfo = localtime(&rawtime);
+	// Before using any Pylon methods, the Pylon runtime must be initialized.
+	PylonInitialize();
 
-   strftime(buffer, sizeof(buffer), "%H:%M:%S", timeinfo);
-   std::string image_time(buffer);
+	try
+	{
+		// Try to get a grab result.
+		try
+		{
+			cerr << timestr << " grabbing images" << endl;
 
-   std::cout << image_time << " Waiting for an image to be grabbed." << endl;
-   // end of theft 
+			CBaslerUsbInstantCamera Camera(CTlFactory::GetInstance().CreateFirstDevice());
 
-   clock_t t; 
-   t = clock();   		
+			Camera.Open();
+			Camera.PixelFormat.SetValue(PixelFormat_BayerRG12);
 
-   // The exit code of the sample application.
-   int exitCode = 0;
+			take_exposures(Camera, 50, 5);
+			take_exposures(Camera, 100, 1);
+			take_exposures(Camera, 250, 1);
+			take_exposures(Camera, 500, 1);
 
-   // Before using any pylon methods, the pylon runtime must be initialized. 
-   PylonInitialize();
-
-   int exposure_time=0;
-   try
-   {
-           // Try to get a grab result.
-           try
-           {
-		CBaslerUsbInstantCamera Camera( CTlFactory::GetInstance().CreateFirstDevice());
-
-		Camera.Open();
-		Camera.PixelFormat.SetValue(PixelFormat_BayerRG12);
-
-		take_exposures(Camera, t, 5, 50000);
-		take_exposures(Camera, t, 1, 100000);
-		take_exposures(Camera, t, 1, 250000);
-		take_exposures(Camera, t, 1, 500000);
-
-		Camera.Close();
-            }
-            catch (const GenericException &e)
-            {
-
-                cerr << "Could not grab an image: " << endl
-                    << e.GetDescription() << endl;
-            }
+			Camera.Close();
+		}
+		catch (const GenericException &e)
+		{
+			cerr << timestr << " Could not grab an image: " << endl
+				<< e.GetDescription() << endl;
+		}
     }
     catch (const GenericException &e)
     {
-        // Error handling.
-        cerr << "An exception occurred." << endl
-        << e.GetDescription() << endl;
-        exitCode = 1;
+		// Error handling.
+		cerr << timestr << " An exception occurred:" << endl
+			<< e.GetDescription() << endl;
+		exit(1);
     }
 
-    // Comment the following two lines to disable waiting on exit.
-//    cerr << endl << "Press Enter to exit." << endl;
-//    while( cin.get() != '\n');
+    // Releases all Pylon resources.
+    PylonTerminate();
 
-    // Releases all pylon resources. 
-    PylonTerminate(); 
-
-    return exitCode;
+    exit(0);
 }
