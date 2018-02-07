@@ -86,15 +86,18 @@ int main(int argc, char* argv[])
 {
 	if ( argc == 1 )
 	{
+		// No command line arguments, display usage
 		cerr << "usage: " << argv[0] << " camera-id [path]" << endl;
 		exit(-1);
 	}
 	if ( argc > 1 )
 	{
+		// Get CameraID from first command line argument (required)
 		CameraID = atoi(argv[1]);
 	}
 	if ( argc > 2 )
 	{
+		// Get image directory path from second command line argument (optional)
 		FILE* fp = fopen(argv[2], "r");
 		if ( fp == NULL )
 		{
@@ -110,44 +113,35 @@ int main(int argc, char* argv[])
 	string timestr = get_time_string();
 	cerr << timestr << " filepath: " << filepath << ", CameraID=" << CameraID << endl;
 
-	// Before using any Pylon methods, the Pylon runtime must be initialized.
+	// Initialize Pylon runtime before using any Pylon methods 
 	PylonInitialize();
 
 	try
 	{
-		// Try to get a grab result.
-		try
-		{
-			cerr << timestr << " grabbing images" << endl;
+		// Configure camera resources
+		CBaslerUsbInstantCamera Camera(CTlFactory::GetInstance().CreateFirstDevice());
+		Camera.Open();
+		Camera.PixelFormat.SetValue(PixelFormat_BayerRG12);
 
-			CBaslerUsbInstantCamera Camera(CTlFactory::GetInstance().CreateFirstDevice());
+		cerr << timestr << " grabbing images" << endl;
 
-			Camera.Open();
-			Camera.PixelFormat.SetValue(PixelFormat_BayerRG12);
+		// Capture images at different exposures
+		take_exposures(Camera, 50, 5);
+		take_exposures(Camera, 100, 1);
+		take_exposures(Camera, 250, 1);
+		take_exposures(Camera, 500, 1);
 
-			take_exposures(Camera, 50, 5);
-			take_exposures(Camera, 100, 1);
-			take_exposures(Camera, 250, 1);
-			take_exposures(Camera, 500, 1);
-
-			Camera.Close();
-		}
-		catch (const GenericException &e)
-		{
-			cerr << timestr << " Could not grab an image: " << endl
-				<< e.GetDescription() << endl;
-		}
-    }
-    catch (const GenericException &e)
-    {
+		Camera.Close();
+	}
+	catch (const GenericException &e)
+	{
 		// Error handling.
-		cerr << timestr << " An exception occurred:" << endl
-			<< e.GetDescription() << endl;
-		exit(1);
-    }
+		cerr << timestr << " An exception occurred: " << e.what() << endl;
+		exit(-1);
+	}
 
-    // Releases all Pylon resources.
-    PylonTerminate();
+	// Releases all Pylon resources.
+	PylonTerminate();
 
-    exit(0);
+	exit(0);
 }
