@@ -3,6 +3,7 @@
 
 # The program to build
 NAME := NiteLite_115
+MULTI := NiteLite_115_multi
 
 # Installation directories for pylon
 PYLON_ROOT ?= /opt/pylon5
@@ -15,12 +16,15 @@ LDFLAGS    := $(shell $(PYLON_ROOT)/bin/pylon-config --libs-rpath)
 LDLIBS     := $(shell $(PYLON_ROOT)/bin/pylon-config --libs)
 
 # Rules for building
-all: $(NAME)
+all: $(NAME) $(MULTI)
 
 $(NAME): $(NAME).o
 	$(LD) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
-$(NAME).o: $(NAME).cpp
+$(MULTI): $(MULTI).o
+	$(LD) $(LDFLAGS) -o $@ $^ $(LDLIBS)
+
+.cpp.o:
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c -o $@ $<
 
 clean:
