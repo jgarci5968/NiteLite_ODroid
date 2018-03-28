@@ -171,7 +171,6 @@ void take_exposures(CBaslerUsbInstantCamera* cameras[], int n, int exposure_time
 		else
 			cout << timestr << ", " << idx << ", " << exposure_time << ", " << seq << ", t=" << internal_temp << ", grab failed" << endl;
 	}
-	sleep(1);
 }
 
 
@@ -216,7 +215,8 @@ int main(int argc, char* argv[])
 		cerr << timestr << " Found " << n << " cameras" << endl;
 		initialize_image_dirs(cameras, n, timestr);
 
-		for ( int count = 0; count < 1; count++ )
+		//for ( int count = 0; count < 1; count++ )
+		while ( true )
 		{
 			imaging_cycle(cameras, n);
 		}
