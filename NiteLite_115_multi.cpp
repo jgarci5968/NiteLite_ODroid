@@ -9,9 +9,13 @@
 // System includes
 #include <sstream>
 #include <iostream>
+#include <system_error>
 #include <ctime>
 #include <cstdio>
 #include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <dirent.h>
 
 // Pylon API header files
 #include <pylon/PylonIncludes.h>
@@ -27,6 +31,7 @@ using namespace Basler_UsbCameraParams;
 
 
 string image_dir = "/home/odroid/Pictures/";
+string camera_dir[3];
 int CameraID = 0;
 
 
@@ -46,7 +51,8 @@ string get_time_string()
 
 
 // Enumerate the connected cameras and initialize each one.
-int InitializeCameras(CBaslerUsbInstantCamera* cameras[], string timestr)
+// Return value: number of cameras initialized
+int initialize_cameras(CBaslerUsbInstantCamera* cameras[], string timestr)
 {
 	CTlFactory& TlFactory = CTlFactory::GetInstance();
 	DeviceInfoList_t lstDevices;
@@ -73,17 +79,76 @@ int InitializeCameras(CBaslerUsbInstantCamera* cameras[], string timestr)
 }
 
 
+// Check for existence of image directories and create if not there.
+// This uses global variable "image_dir".
+// Return value: 0 - directory initialization succeeded
+//		-1 - directory initialization failed
+int initialize_image_dirs(CBaslerUsbInstantCamera* cameras[], int n, string timestr)
+{
+	if ( image_dir.at(image_dir.length() - 1) != '/' )
+		image_dir += '/';
+	
+	// Check for top level image dir
+	FILE* fp = fopen(image_dir.c_str(), "r");
+	if ( fp == NULL )
+	{
+		throw system_error{errno, system_category(), timestr + " Failed to open image directory " + image_dir};
+	}
+	else
+	{
+		cerr << timestr << " Image directory exists: " << image_dir << endl;
+		fclose(fp);
+	}
+
+	// Check for camera directories
+	for ( int i = 0; i < n; i++ )
+	{
+		ostringstream dirpath;
+		dirpath << image_dir << cameras[i]->GetDeviceInfo().GetSerialNumber() << "/";
+		camera_dir[i] = dirpath.str();
+
+		fp = fopen(camera_dir[i].c_str(), "r");
+		if ( fp == NULL )
+		{
+			// Camera directory doesn't exist, so create it
+			if ( mkdir(camera_dir[i].c_str(), S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH ) < 0 )
+			{
+				throw system_error{errno, system_category(), timestr + " Failed to create camera directory " + camera_dir[i]};
+			}
+			else
+			{
+				cerr << timestr << " Created camera directory: " << camera_dir[i] << endl;
+			}
+		}
+		else
+		{
+			cerr << timestr << " Camera directory exists: " << camera_dir[i] << endl;
+			fclose(fp);
+		}
+	}
+}
+
+
+// Release camera resources
+void terminate_cameras(CBaslerUsbInstantCamera* cameras[], int n, string timestr)
+{
+	for ( int i = 0; i < n; i++ )
+		cameras[i]->Close();
+	cerr << timestr << " Terminated cameras" << endl;
+}
+
+
 // Create a filename from the image capture parameters.
-gcstring create_filename(string timestr, int exposure, string sn, EImageFileFormat format)
+gcstring create_filename(string timestr, int cameraID, int exposure, string sn, int seq, EImageFileFormat format)
 {
 	ostringstream filename;
-	filename << image_dir << timestr << "_" << exposure << "_" << sn << (( format == ImageFileFormat_Tiff )? ".tiff" : ".raw");
+	filename << camera_dir[cameraID] << timestr << "_" << exposure << "_" << sn << "_" << seq << (( format == ImageFileFormat_Tiff )? ".tiff" : ".raw");
 	return gcstring(filename.str().c_str());
 }
 
 
 // Capture an image from each camera in the camera array
-void take_exposures(CBaslerUsbInstantCamera* cameras[], int n, int exposure_time, EImageFileFormat format)
+void take_exposures(CBaslerUsbInstantCamera* cameras[], int n, int exposure_time, int seq, EImageFileFormat format)
 {
 	CGrabResultPtr ptrGrabResult;
 	string timestr = get_time_string();
@@ -99,18 +164,32 @@ void take_exposures(CBaslerUsbInstantCamera* cameras[], int n, int exposure_time
 			// The pylon grab result smart pointer classes provide a cast operator to the IImage
 			// interface. This makes it possible to pass a grab result directly to the
 			// function that saves an image to disk.
-			gcstring gc_filename = create_filename(timestr, exposure_time, serial_number, format);
+			gcstring gc_filename = create_filename(timestr, idx, exposure_time, serial_number, seq, format);
 			CImagePersistence::Save(format, gc_filename, ptrGrabResult);
-			cout << timestr << ", " << idx << ", " << exposure_time << ", t=" << internal_temp << ", " << gc_filename << endl;
+			cout << timestr << ", " << idx << ", " << exposure_time << ", " << seq << ", t=" << internal_temp << ", " << gc_filename << endl;
 		}
 		else
-			cout << timestr << ", " << idx << ", " << exposure_time << ", t=" << internal_temp << ", grab failed" << endl;
+			cout << timestr << ", " << idx << ", " << exposure_time << ", " << seq << ", t=" << internal_temp << ", grab failed" << endl;
 	}
+	sleep(1);
+}
+
+
+// Take exposures for one imaging cycle consisting of 5 raw images at 50ms and one TIFF image at 100ms.
+void imaging_cycle(CBaslerUsbInstantCamera* cameras[], int n)
+{
+	take_exposures(cameras, n, 50, 0, ImageFileFormat_Raw);
+	take_exposures(cameras, n, 50, 1, ImageFileFormat_Raw);
+	take_exposures(cameras, n, 50, 2, ImageFileFormat_Raw);
+	take_exposures(cameras, n, 50, 3, ImageFileFormat_Raw);
+	take_exposures(cameras, n, 50, 4, ImageFileFormat_Raw);
+	take_exposures(cameras, n, 100, 0, ImageFileFormat_Tiff);
 }
 
 
 int main(int argc, char* argv[])
 {
+	// Check command line parameters
 	if ( argc > 1 )
 	{
 		if ( string("-h") == argv[1] )
@@ -119,17 +198,8 @@ int main(int argc, char* argv[])
 			cerr << "usage: " << argv[0] << " [directory path]" << endl;
 			exit(-1);
 		}
-	
-		// Get image directory path from second command line argument (optional)
-		FILE* fp = fopen(argv[2], "r");
-		if ( fp == NULL )
-		{
-			perror(argv[1]);
-			exit(-1);
-		}
 		else
-			fclose(fp);
-		image_dir = argv[2];
+			image_dir = argv[1];
 	}
 
 
@@ -142,29 +212,30 @@ int main(int argc, char* argv[])
 	try
 	{
 		CBaslerUsbInstantCamera* cameras[3];
-		int n = InitializeCameras(cameras, timestr);
+		int n = initialize_cameras(cameras, timestr);
 		cerr << timestr << " Found " << n << " cameras" << endl;
+		initialize_image_dirs(cameras, n, timestr);
 
-		for ( int count = 0; count < 10; count++ )
+		for ( int count = 0; count < 1; count++ )
 		{
-			take_exposures(cameras, n, 50, ImageFileFormat_Raw);
-			take_exposures(cameras, n, 50, ImageFileFormat_Raw);
-			take_exposures(cameras, n, 50, ImageFileFormat_Raw);
-			take_exposures(cameras, n, 50, ImageFileFormat_Raw);
-			take_exposures(cameras, n, 50, ImageFileFormat_Raw);
-			take_exposures(cameras, n, 100, ImageFileFormat_Tiff);
-			sleep(1);
+			imaging_cycle(cameras, n);
 		}
 
-		for ( int i = 0; i < n; i++ )
-			cameras[i]->Close();
+		terminate_cameras(cameras, n, get_time_string());
 	}
 	catch (const GenericException &e)
 	{
-		// Error handling.
+		// Pylon error handling.
 		cerr << timestr << " An exception occurred: " << e.what() << endl;
 		exit(-1);
 	}
+	catch (const system_error &e)
+	{
+		// System error handling.
+		cerr << e.what() << endl;
+		exit(-1);
+	}
+
 
 	// Releases all Pylon resources.
 	PylonTerminate();
