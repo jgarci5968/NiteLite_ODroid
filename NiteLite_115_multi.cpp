@@ -34,7 +34,6 @@ using namespace Basler_UsbCameraParams;
 string image_dir = "/home/odroid/Pictures/";
 string camera_dir[3];
 int CameraID = 0;
-const int MAX_CAMERAS = 3;
 
 
 // Create a formatted string from the current system time
