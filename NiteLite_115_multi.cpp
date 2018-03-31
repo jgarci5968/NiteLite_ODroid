@@ -20,6 +20,7 @@
 // Pylon API header files
 #include <pylon/PylonIncludes.h>
 #include <pylon/usb/BaslerUsbInstantCamera.h>
+#include <pylon/usb/BaslerUsbInstantCameraArray.h>
 
 // System namespace
 using namespace std;
@@ -33,6 +34,7 @@ using namespace Basler_UsbCameraParams;
 string image_dir = "/home/odroid/Pictures/";
 string camera_dir[3];
 int CameraID = 0;
+const int MAX_CAMERAS = 3;
 
 
 // Create a formatted string from the current system time
@@ -52,26 +54,28 @@ string get_time_string()
 
 // Enumerate the connected cameras and initialize each one.
 // Return value: number of cameras initialized
-int initialize_cameras(CBaslerUsbInstantCamera* cameras[], string timestr)
+int initialize_cameras(CBaslerUsbInstantCameraArray &cameras, string timestr)
 {
-	CTlFactory& TlFactory = CTlFactory::GetInstance();
+	CTlFactory& tlFactory = CTlFactory::GetInstance();
 	DeviceInfoList_t lstDevices;
 	int i = 0;
 
 	// Find and configure camera resources
-	TlFactory.EnumerateDevices(lstDevices);
-	if ( !lstDevices.empty() )
+	if ( tlFactory.EnumerateDevices(lstDevices) > 0 )
 	{
+		cerr << timestr << " Found " << lstDevices.size() << " camera" << ((lstDevices.size() > 1)? "s" : "") << endl;
+		cameras.Initialize(lstDevices.size());
+
 		DeviceInfoList_t::const_iterator it;
 		it = lstDevices.begin();
 		for ( it = lstDevices.begin(); it != lstDevices.end(); ++it, ++i )
 		{
-			cameras[i] = new CBaslerUsbInstantCamera(TlFactory.CreateDevice(*it));
-			cameras[i]->Open();
-			cameras[i]->PixelFormat.SetValue(PixelFormat_BayerRG12);
+			cameras[i].Attach(tlFactory.CreateDevice(*it));
+			cameras[i].Open();
+			cameras[i].PixelFormat.SetValue(PixelFormat_BayerRG12);
 
-			cerr << timestr << " Camera " << cameras[i]->GetDeviceInfo().GetFullName();
-			cerr << " sn: " << cameras[i]->GetDeviceInfo().GetSerialNumber();
+			cerr << timestr << " Camera " << cameras[i].GetDeviceInfo().GetFullName();
+			cerr << " sn: " << cameras[i].GetDeviceInfo().GetSerialNumber();
 			cerr << " configured" << endl;
 		}
 	}
@@ -83,7 +87,7 @@ int initialize_cameras(CBaslerUsbInstantCamera* cameras[], string timestr)
 // This uses global variable "image_dir".
 // Return value: 0 - directory initialization succeeded
 //		-1 - directory initialization failed
-int initialize_image_dirs(CBaslerUsbInstantCamera* cameras[], int n, string timestr)
+int initialize_image_dirs(CBaslerUsbInstantCameraArray &cameras, string timestr)
 {
 	if ( image_dir.at(image_dir.length() - 1) != '/' )
 		image_dir += '/';
@@ -101,10 +105,10 @@ int initialize_image_dirs(CBaslerUsbInstantCamera* cameras[], int n, string time
 	}
 
 	// Check for camera directories
-	for ( int i = 0; i < n; i++ )
+	for ( int i = 0; i < cameras.GetSize(); i++ )
 	{
 		ostringstream dirpath;
-		dirpath << image_dir << cameras[i]->GetDeviceInfo().GetSerialNumber() << "/";
+		dirpath << image_dir << cameras[i].GetDeviceInfo().GetSerialNumber() << "/";
 		camera_dir[i] = dirpath.str();
 
 		fp = fopen(camera_dir[i].c_str(), "r");
@@ -113,7 +117,8 @@ int initialize_image_dirs(CBaslerUsbInstantCamera* cameras[], int n, string time
 			// Camera directory doesn't exist, so create it
 			if ( mkdir(camera_dir[i].c_str(), S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH ) < 0 )
 			{
-				throw system_error{errno, system_category(), timestr + " Failed to create camera directory " + camera_dir[i]};
+				throw system_error{errno, system_category(),
+					timestr + " Failed to create camera directory " + camera_dir[i]};
 			}
 			else
 			{
@@ -130,10 +135,10 @@ int initialize_image_dirs(CBaslerUsbInstantCamera* cameras[], int n, string time
 
 
 // Release camera resources
-void terminate_cameras(CBaslerUsbInstantCamera* cameras[], int n, string timestr)
+void terminate_cameras(CBaslerUsbInstantCameraArray &cameras, string timestr)
 {
-	for ( int i = 0; i < n; i++ )
-		cameras[i]->Close();
+	for ( int i = 0; i < cameras.GetSize(); i++ )
+		cameras[i].Close();
 	cerr << timestr << " Terminated cameras" << endl;
 }
 
@@ -142,47 +147,50 @@ void terminate_cameras(CBaslerUsbInstantCamera* cameras[], int n, string timestr
 gcstring create_filename(string timestr, int cameraID, int exposure, string sn, int seq, EImageFileFormat format)
 {
 	ostringstream filename;
-	filename << camera_dir[cameraID] << timestr << "_" << exposure << "_" << sn << "_" << seq << (( format == ImageFileFormat_Tiff )? ".tiff" : ".raw");
+	filename << camera_dir[cameraID] << timestr << "_" << exposure << "_" << sn << "_" << seq;
+	filename << (( format == ImageFileFormat_Tiff )? ".tiff" : ".raw");
 	return gcstring(filename.str().c_str());
 }
 
 
 // Capture an image from each camera in the camera array
-void take_exposures(CBaslerUsbInstantCamera* cameras[], int n, int exposure_time, int seq, EImageFileFormat format)
+void take_exposures(CBaslerUsbInstantCameraArray &cameras, int exposure_time, int seq, EImageFileFormat format)
 {
 	CGrabResultPtr ptrGrabResult;
 	string timestr = get_time_string();
 
-	for(int idx = 0; idx < n; idx++)
+	for(int idx = 0; idx < cameras.GetSize(); idx++)
 	{
-		string serial_number = cameras[idx]->GetDeviceInfo().GetSerialNumber().c_str();
-		double internal_temp = cameras[idx]->DeviceTemperature.GetValue();
-		cameras[idx]->ExposureTime.SetValue(exposure_time * 1000); // in microseconds
+		string serial_number = cameras[idx].GetDeviceInfo().GetSerialNumber().c_str();
+		double internal_temp = cameras[idx].DeviceTemperature.GetValue();
+		cameras[idx].ExposureTime.SetValue(exposure_time * 1000); // in microseconds
 
-		if ( cameras[idx]->GrabOne(1000, ptrGrabResult) )
+		if ( cameras[idx].GrabOne(1000, ptrGrabResult) )
 		{
 			// The pylon grab result smart pointer classes provide a cast operator to the IImage
 			// interface. This makes it possible to pass a grab result directly to the
 			// function that saves an image to disk.
 			gcstring gc_filename = create_filename(timestr, idx, exposure_time, serial_number, seq, format);
 			CImagePersistence::Save(format, gc_filename, ptrGrabResult);
-			cout << timestr << ", " << idx << ", " << exposure_time << ", " << seq << ", t=" << internal_temp << ", " << gc_filename << endl;
+			cout << timestr << ", " << idx << ", " << exposure_time << ", " << seq;
+			cout << ", t=" << internal_temp << ", " << gc_filename << endl;
 		}
 		else
-			cout << timestr << ", " << idx << ", " << exposure_time << ", " << seq << ", t=" << internal_temp << ", grab failed" << endl;
+			cout << timestr << ", " << idx << ", " << exposure_time << ", " << seq;
+			cout << ", t=" << internal_temp << ", grab failed" << endl;
 	}
 }
 
 
 // Take exposures for one imaging cycle consisting of 5 raw images at 50ms and one TIFF image at 100ms.
-void imaging_cycle(CBaslerUsbInstantCamera* cameras[], int n)
+void imaging_cycle(CBaslerUsbInstantCameraArray &cameras)
 {
-	take_exposures(cameras, n, 50, 0, ImageFileFormat_Raw);
-	take_exposures(cameras, n, 50, 1, ImageFileFormat_Raw);
-	take_exposures(cameras, n, 50, 2, ImageFileFormat_Raw);
-	take_exposures(cameras, n, 50, 3, ImageFileFormat_Raw);
-	take_exposures(cameras, n, 50, 4, ImageFileFormat_Raw);
-	take_exposures(cameras, n, 100, 0, ImageFileFormat_Tiff);
+	take_exposures(cameras, 50, 0, ImageFileFormat_Raw);
+	take_exposures(cameras, 50, 1, ImageFileFormat_Raw);
+	take_exposures(cameras, 50, 2, ImageFileFormat_Raw);
+	take_exposures(cameras, 50, 3, ImageFileFormat_Raw);
+	take_exposures(cameras, 50, 4, ImageFileFormat_Raw);
+	take_exposures(cameras, 100, 0, ImageFileFormat_Tiff);
 }
 
 
@@ -210,18 +218,17 @@ int main(int argc, char* argv[])
 
 	try
 	{
-		CBaslerUsbInstantCamera* cameras[3];
+		CBaslerUsbInstantCameraArray cameras;
 		int n = initialize_cameras(cameras, timestr);
-		cerr << timestr << " Found " << n << " cameras" << endl;
-		initialize_image_dirs(cameras, n, timestr);
+		initialize_image_dirs(cameras, timestr);
 
-		//for ( int count = 0; count < 1; count++ )
-		while ( true )
+		for ( int count = 0; count < 1; count++ )
+		//while ( true )
 		{
-			imaging_cycle(cameras, n);
+			imaging_cycle(cameras);
 		}
 
-		terminate_cameras(cameras, n, get_time_string());
+		terminate_cameras(cameras, get_time_string());
 	}
 	catch (const GenericException &e)
 	{
