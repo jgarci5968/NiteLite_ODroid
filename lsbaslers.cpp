@@ -32,7 +32,7 @@ void detect_cameras(CBaslerUsbInstantCameraArray &cameras)
 	// Find and configure camera resources
 	if ( tlFactory.EnumerateDevices(lstDevices) > 0 )
 	{
-		cerr << " Found " << lstDevices.size() << " device" << ((lstDevices.size() > 1)? "s" : "") << endl;
+		cerr << "Found " << lstDevices.size() << " device" << ((lstDevices.size() > 1)? "s" : "") << endl;
 		cameras.Initialize(lstDevices.size());
 
 		DeviceInfoList_t::const_iterator it;
@@ -43,12 +43,15 @@ void detect_cameras(CBaslerUsbInstantCameraArray &cameras)
 			cameras[i].Open();
 			cameras[i].PixelFormat.SetValue(PixelFormat_BayerRG12);
 
-			cerr << " Camera " << cameras[i].GetDeviceInfo().GetFullName();
-			cerr << " sn: " << cameras[i].GetDeviceInfo().GetSerialNumber();
-			cerr << " detected" << endl;
+			cerr << "Camera " << cameras[i].GetDeviceInfo().GetFullName();
+			cerr << "sn: " << cameras[i].GetDeviceInfo().GetSerialNumber();
+			cerr << "detected" << endl;
 		}
 	}
-
+	else
+	{
+		cerr << "No devices found" << endl;
+	}
 }
 
 
