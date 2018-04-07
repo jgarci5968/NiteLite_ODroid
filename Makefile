@@ -5,6 +5,7 @@
 NAME := NiteLite_115
 MULTI := NiteLite_115_multi
 LSBASLER := lsbaslers
+HANDLEUSB := handleusb
 
 # Installation directories for pylon
 PYLON_ROOT ?= /opt/pylon5
@@ -17,7 +18,7 @@ LDFLAGS    := $(shell $(PYLON_ROOT)/bin/pylon-config --libs-rpath)
 LDLIBS     := $(shell $(PYLON_ROOT)/bin/pylon-config --libs)
 
 # Rules for building
-all: $(NAME) $(MULTI) $(LSBASLER)
+all: $(NAME) $(MULTI) $(LSBASLER) $(HANDLEUSB)
 
 $(NAME): $(NAME).o
 	$(LD) $(LDFLAGS) -o $@ $^ $(LDLIBS)
@@ -26,6 +27,9 @@ $(MULTI): $(MULTI).o
 	$(LD) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
 $(LSBASLER): $(LSBASLER).o
+	$(LD) $(LDFLAGS) -o $@ $^ $(LDLIBS)
+
+$(HANDLEUSB): $(HANDLEUSB).o
 	$(LD) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
 .cpp.o:
