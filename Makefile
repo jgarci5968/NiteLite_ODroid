@@ -4,6 +4,7 @@
 # The program to build
 NAME := NiteLite_115
 MULTI := NiteLite_115_multi
+BASLERCTRL := baslerctrl
 LSBASLER := lsbaslers
 HANDLEUSB := handleusb
 
@@ -15,15 +16,18 @@ LD         := $(CXX)
 CPPFLAGS   := $(shell $(PYLON_ROOT)/bin/pylon-config --cflags) -std=c++11 
 CXXFLAGS   := #e.g., CXXFLAGS=-g -O0 for debugging
 LDFLAGS    := $(shell $(PYLON_ROOT)/bin/pylon-config --libs-rpath)
-LDLIBS     := $(shell $(PYLON_ROOT)/bin/pylon-config --libs)
+LDLIBS     := $(shell $(PYLON_ROOT)/bin/pylon-config --libs) -lpthread
 
 # Rules for building
-all: $(NAME) $(MULTI) $(LSBASLER) $(HANDLEUSB)
+all: $(NAME) $(MULTI) $(BASLERCTRL) $(LSBASLER) $(HANDLEUSB) 
 
 $(NAME): $(NAME).o
 	$(LD) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
 $(MULTI): $(MULTI).o
+	$(LD) $(LDFLAGS) -o $@ $^ $(LDLIBS)
+
+$(BASLERCTRL): $(BASLERCTRL).o
 	$(LD) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
 $(LSBASLER): $(LSBASLER).o
