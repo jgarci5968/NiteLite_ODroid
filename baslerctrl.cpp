@@ -25,6 +25,9 @@
 #include <pylon/usb/BaslerUsbInstantCamera.h>
 #include <pylon/usb/BaslerUsbInstantCameraArray.h>
 
+// Local include
+#include "OBCData.h"
+
 // System namespace
 using namespace std;
 
@@ -34,18 +37,10 @@ using namespace GenApi;
 using namespace Basler_UsbCameraParams;
 
 
-string dev_path = "/dev/ttyACM0";
+string dev_path = "/dev/ttyUSB0";
 string image_dir = "/home/odroid/Pictures/";
 string camera_dir[3];
 int CameraID = 0;
-
-
-// Shared buffer for passing data between read_usb thread and main thread
-struct SharedData
-{
-	mutex m;
-	string obc_data;
-} shared_buffer;
 
 
 // Create a formatted string from the current system time
@@ -60,66 +55,6 @@ string get_time_string()
 	char buffer[80];
 	strftime(buffer, sizeof(buffer), "%y%m%d_%H%M%S", timeinfo);
 	return string(buffer);
-}
-
-
-// Initialize USB device and continuously read data
-// Shared variable is updated with received data
-void read_usb()
-{
-	// Attempt to open USB device repeatedly until successful
-	FILE* fp;
-	while ( (fp = fopen(dev_path.c_str(), "r")) == NULL )
-	{
-		if ( errno != EBUSY && errno != ENOENT )
-		{
-			system_error e {errno, system_category(), dev_path};
-			cerr << e.what() << endl;
-		}
-		sleep(2);
-	}
-
-	// stty settings:
-	// speed 115200 baud; rows 0; columns 0; line = 0;
-	// intr = ^C; quit = ^\; erase = ^?; kill = ^U; eof = ^D; eol = <undef>; eol2 = <undef>; swtch = <undef>;
-	//  start = ^Q; stop = ^S;
-	// susp = ^Z; rprnt = ^R; werase = ^W; lnext = ^V; discard = ^O; min = 1; time = 0;
-	// -parenb -parodd -cmspar cs8 -hupcl -cstopb cread clocal -crtscts
-	// ignbrk -brkint -ignpar -parmrk -inpck -istrip -inlcr -igncr -icrnl -ixon -ixoff -iuclc -ixany -imaxbel -iutf8
-	// -opost -olcuc -ocrnl -onlcr -onocr -onlret -ofill -ofdel nl0 cr0 tab0 bs0 vt0 ff0
-	// -isig -icanon -iexten -echo -echoe -echok -echonl noflsh -xcase -tostop -echoprt -echoctl -echoke -flusho -extproc
-
-	string magic{" 1:0:18b2:80:3:1c:7f:15:4:0:1:0:11:13:1a:0:12:f:17:16:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0"};
-	string syscmd{"/bin/stty -F " + dev_path + magic};
-	system(syscmd.c_str());
-	
-
-	if ( fp == NULL )
-	{
-		system_error e {errno, system_category(), dev_path};
-		cerr << e.what() << endl;
-	}
-	else
-	{
-		int c;
-		string inputLine;
-
-		do {
-			c = fgetc(fp);
-			inputLine += (char) c;
-			if ( c == '\n' )
-			{
-				shared_buffer.m.lock();
-				shared_buffer.obc_data = inputLine;
-				shared_buffer.m.unlock();
-				inputLine = "";
-			}
-		} while ( c != EOF );
-		shared_buffer.m.lock();
-		shared_buffer.obc_data = inputLine;
-		shared_buffer.m.unlock();
-		fclose(fp);
-	}
 }
 
 
@@ -295,10 +230,11 @@ int main(int argc, char* argv[])
 	}
 
 
-	string timestr = get_time_string();
-	cerr << timestr << " Image directory path: " << image_dir << ", USB device path: " << dev_path << endl;
+	cerr << get_time_string() << " Image directory path: " << image_dir << ", USB device path: " << dev_path << endl;
 
-	thread t1 {read_usb};
+	// Initialize USB device and start reading data
+	FILE* fp = init_usb(dev_path, get_time_string());
+	thread t1 {read_usb, fp};
 
 	// Initialize Pylon runtime before using any Pylon methods 
 	PylonInitialize();
@@ -306,20 +242,18 @@ int main(int argc, char* argv[])
 	try
 	{
 		CBaslerUsbInstantCameraArray cameras;
-		int n = initialize_cameras(cameras, timestr);
-		initialize_image_dirs(cameras, timestr);
+		int n = initialize_cameras(cameras, get_time_string());
+		initialize_image_dirs(cameras, get_time_string());
 
 		//for ( int count = 0; count < 1; count++ )
 		while ( true )
 		{
 			//imaging_cycle(cameras);
-			shared_buffer.m.lock();
-			string data = shared_buffer.obc_data;
-			shared_buffer.m.unlock();
-			if ( data != "" )
-				cout << data;
-			else
-				cout << "no data" << endl;
+			shared_data.m.lock();
+			OBCData data = shared_data.obc_data;
+			shared_data.m.unlock();
+			cout << "read: " << data.test << endl;
+			cout << get_time_string() << " " << data.display() << endl;
 			sleep(2);
 		}
 
@@ -328,7 +262,7 @@ int main(int argc, char* argv[])
 	catch (const GenericException &e)
 	{
 		// Pylon error handling.
-		cerr << timestr << " An exception occurred: " << e.what() << endl;
+		cerr << get_time_string() << " An exception occurred: " << e.what() << endl;
 		exit(-1);
 	}
 	catch (const system_error &e)
