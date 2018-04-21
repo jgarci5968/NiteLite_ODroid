@@ -27,7 +27,7 @@ $(NAME): $(NAME).o
 $(MULTI): $(MULTI).o
 	$(LD) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
-$(BASLERCTRL): $(BASLERCTRL).o
+$(BASLERCTRL): $(BASLERCTRL).o OBCData.o
 	$(LD) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
 $(LSBASLER): $(LSBASLER).o
