@@ -2,7 +2,7 @@
 //	Implementation of OBCData class.  This class encapsulates OBC data and parsing of the data
 //	stream read from a USB port.  This is intended to be used in a separate thread to manage
 //	communications with the OBC.  Data is read from the USB port as fast as possible and stored
-//	in a shared buffer.  This makes the most recent data from the OBC available for the 
+//	in a shared buffer.  This makes the most recent data from the OBC available for the
 //	main thread.
 
 // System includes
@@ -26,7 +26,7 @@ using namespace std;
 SharedData shared_data;
 
 
-// Initialize USB device. 
+// Initialize USB device.
 // Attempt to open the device file and loop until successfully opened.
 FILE* init_usb(string dev_path, string timestr)
 {
@@ -57,12 +57,12 @@ FILE* init_usb(string dev_path, string timestr)
 	system(syscmd.c_str());
 
 	cerr << timestr << " Configured USB device: " << dev_path << endl;
-	
+
 	return fp;
 }
 
 
-// Read OBC data from the USB device continuously.  
+// Read OBC data from the USB device continuously.
 // Shared variable is updated with received data
 void read_usb(FILE* fp)
 {
@@ -73,32 +73,35 @@ void read_usb(FILE* fp)
 
 	do {
 		c = fgetc(fp);
-		if ( c == '%' )
+		input_data.input += (char)c;
+
+		if ( c == '$' )
 		{
-			pos = 0;	// Record start, reset field pointer
-			input_data.test += (char)c;
+			// Reset input buffer
+			pos = 0;
+			input_data = OBCData();
 		}
 		else if ( c == ',' )
 		{
-			// Found field delimiter
+			// Populate field at current position and clear field
 			input_data.parseField(field, pos);
 			pos++;
 			field = "";
-			input_data.test += (char)c;
 		}
 		else if ( c == ';' )
 		{
-			// Found end of record
+			// Populate field at current position
+			input_data.parseField(field, pos);
+			field = "";
+
+			// Transfer input buffer to shared data
 			shared_data.m.lock();
 			shared_data.obc_data = input_data;
 			shared_data.m.unlock();
-			input_data = OBCData();
-			pos = -1;
 		}
 		else if ( isdigit(c) || c == '-' || c == '.' )
 		{
 			field += (char) c;
-			input_data.test += (char)c;
 		}
 
 	} while ( c != EOF );
@@ -117,21 +120,20 @@ void OBCData::parseField(string field, int pos)
 	case 2: mm = stoi(field); break;
 	case 3: dd = stoi(field); break;
 	case 4: hh = stoi(field); break;
-	case 5: dd = stoi(field); break;
-	case 6: min = stoi(field); break;
-	case 7: ss = stoi(field); break;
-	case 8: lat = stod(field); break;
-	case 9: lon = stod(field); break;
-	case 10: alt = stod(field); break;
-	case 11: ax = stod(field); break;
-	case 12: ay = stod(field); break;
-	case 13: az = stod(field); break;
-	case 14: gx = stod(field); break;
-	case 15: gy = stod(field); break;
-	case 16: gz = stod(field); break;
-	case 17: mx = stod(field); break;
-	case 18: my = stod(field); break;
-	case 19: mz = stod(field); break;
+	case 5: min = stoi(field); break;
+	case 6: ss = stoi(field); break;
+	case 7: lat = stod(field); break;
+	case 8: lon = stod(field); break;
+	case 9: alt = stod(field); break;
+	case 10: ax = stod(field); break;
+	case 11: ay = stod(field); break;
+	case 12: az = stod(field); break;
+	case 13: gx = stod(field); break;
+	case 14: gy = stod(field); break;
+	case 15: gz = stod(field); break;
+	case 16: mx = stod(field); break;
+	case 17: my = stod(field); break;
+	case 18: mz = stod(field); break;
 	}
 }
 
@@ -144,7 +146,6 @@ string OBCData::display()
 	output_line << mm << " ";
 	output_line << dd << " ";
 	output_line << hh << " ";
-	output_line << dd << " ";
 	output_line << min << " ";
 	output_line << ss << " ";
 	output_line << lat << " ";

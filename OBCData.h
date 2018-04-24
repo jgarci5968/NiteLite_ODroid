@@ -14,14 +14,14 @@ const int MAX_FIELDS=19;
 class OBCData
 {
 public:
-	string test;	// Test variable
+	string input;	// Input string as read
 	long ms;	// OBC internal time in milliseconds
 	int yy;		// Two digit year from GPS
 	int mm;		// Two digit month from GPS
 	int dd;		// Two digit date from GPS
-	int hh;		// GPS hours 
-	int min;	// GPS minutes 
-	int ss;		// GPS seconds 
+	int hh;		// GPS hours
+	int min;	// GPS minutes
+	int ss;		// GPS seconds
 	double lat;	// GPS latitude
 	double lon;	// GPS longitude
 	double alt;	// GPS altitut
