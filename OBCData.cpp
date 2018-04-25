@@ -8,6 +8,7 @@
 // System includes
 #include <string>
 #include <iostream>
+#include <iomanip>
 #include <sstream>
 #include <system_error>
 #include <thread>
@@ -97,6 +98,7 @@ void read_usb(FILE* fp)
 			// Transfer input buffer to shared data
 			shared_data.m.lock();
 			shared_data.obc_data = input_data;
+			shared_data.available = true;
 			shared_data.m.unlock();
 		}
 		else if ( isdigit(c) || c == '-' || c == '.' )
@@ -138,18 +140,22 @@ void OBCData::parseField(string field, int pos)
 }
 
 
+// Display the entire OBC data record
 string OBCData::display()
 {
 	ostringstream output_line;
 	output_line << ms << " ";
 	output_line << yy << " ";
-	output_line << mm << " ";
-	output_line << dd << " ";
-	output_line << hh << " ";
-	output_line << min << " ";
-	output_line << ss << " ";
+	output_line << setw(2) << setfill('0') << mm << " ";
+	output_line << setw(2) << setfill('0') << dd << " ";
+	output_line << setw(2) << setfill('0') << hh << " ";
+	output_line << setw(2) << setfill('0') << min << " ";
+	output_line << setw(2) << setfill('0') << ss << " ";
+	output_line.flags(ios_base::fixed);
+	output_line.precision(5);
 	output_line << lat << " ";
 	output_line << lon << " ";
+	output_line.precision(2);
 	output_line << alt << " ";
 	output_line << ax << " ";
 	output_line << ay << " ";
@@ -163,3 +169,38 @@ string OBCData::display()
 	return output_line.str();
 }
 
+
+string OBCData::getTimeString()
+{
+	ostringstream output_line;
+	output_line << yy;
+	output_line << setw(2) << setfill('0') << mm;
+	output_line << setw(2) << setfill('0') << dd << "_";
+	output_line << setw(2) << setfill('0') << hh;
+	output_line << setw(2) << setfill('0') << min;
+	output_line << setw(2) << setfill('0') << ss << "_";
+	output_line << ms;
+	return output_line.str();
+}
+
+
+string OBCData::getGPSPos()
+{
+	ostringstream output_line;
+	output_line.flags(ios_base::fixed);
+	output_line << setprecision(5) << lat << ", " << lon << ", ";
+	output_line << setprecision(2) << alt;
+	return output_line.str();
+}
+
+
+string OBCData::getIMU()
+{
+	ostringstream output_line;
+	output_line.flags(ios_base::fixed);
+	output_line << setprecision(2);
+	output_line << ax << ", " << ay << ", " << az << ", ";
+	output_line << gx << ", " << gy << ", " << gz << ", ";
+	output_line << mx << " ," << my << ", " << mz;
+	return output_line.str();
+}

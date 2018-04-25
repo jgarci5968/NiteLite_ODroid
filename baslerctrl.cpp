@@ -53,7 +53,8 @@ string get_time_string()
 	timeinfo = localtime(&rawtime);
 
 	char buffer[80];
-	strftime(buffer, sizeof(buffer), "%y%m%d_%H%M%S", timeinfo);
+	//strftime(buffer, sizeof(buffer), "%y%m%d_%H%M%S", timeinfo);
+	strftime(buffer, sizeof(buffer), "%b %d %X", timeinfo);
 	return string(buffer);
 }
 
@@ -153,7 +154,7 @@ void terminate_cameras(CBaslerUsbInstantCameraArray &cameras, string timestr)
 gcstring create_filename(string timestr, int cameraID, int exposure, string sn, int seq, EImageFileFormat format)
 {
 	ostringstream filename;
-	filename << camera_dir[cameraID] << timestr << "_" << exposure << "_" << sn << "_" << seq;
+	filename << camera_dir[cameraID] << timestr << "_" << exposure << "_" << seq;
 	filename << (( format == ImageFileFormat_Tiff )? ".tiff" : ".raw");
 	return gcstring(filename.str().c_str());
 }
@@ -163,13 +164,19 @@ gcstring create_filename(string timestr, int cameraID, int exposure, string sn, 
 void take_exposures(CBaslerUsbInstantCameraArray &cameras, int exposure_time, int seq, EImageFileFormat format)
 {
 	CGrabResultPtr ptrGrabResult;
-	string timestr = get_time_string();
 
 	for(int idx = 0; idx < cameras.GetSize(); idx++)
 	{
 		string serial_number = cameras[idx].GetDeviceInfo().GetSerialNumber().c_str();
 		double internal_temp = cameras[idx].DeviceTemperature.GetValue();
 		cameras[idx].ExposureTime.SetValue(exposure_time * 1000); // in microseconds
+
+		OBCData data;
+		shared_data.m.lock();
+		data = shared_data.obc_data;
+		shared_data.m.unlock();
+		
+		string timestr = data.getTimeString();
 
 		if ( cameras[idx].GrabOne(1000, ptrGrabResult) )
 		{
@@ -178,12 +185,15 @@ void take_exposures(CBaslerUsbInstantCameraArray &cameras, int exposure_time, in
 			// function that saves an image to disk.
 			gcstring gc_filename = create_filename(timestr, idx, exposure_time, serial_number, seq, format);
 			CImagePersistence::Save(format, gc_filename, ptrGrabResult);
-			cout << timestr << ", " << idx << ", " << exposure_time << ", " << seq;
-			cout << ", t=" << internal_temp << ", " << gc_filename << endl;
+			cout << timestr << ", " << idx << ", " << serial_number << ", " << exposure_time << ", " << seq;
+			cout << ", t=" << internal_temp << ", " << gc_filename;
+			cout << ", " << data.getGPSPos() << ", " << data.getIMU() << endl;
 		}
 		else
-			cout << timestr << ", " << idx << ", " << exposure_time << ", " << seq;
+		{
+			cout << timestr << ", " << idx << ", " << serial_number << ", " << exposure_time << ", " << seq;
 			cout << ", t=" << internal_temp << ", grab failed" << endl;
+		}
 	}
 }
 
@@ -248,13 +258,21 @@ int main(int argc, char* argv[])
 		//for ( int count = 0; count < 1; count++ )
 		while ( true )
 		{
-			//imaging_cycle(cameras);
-			shared_data.m.lock();
-			OBCData data = shared_data.obc_data;
-			shared_data.m.unlock();
-			cout << "read: " << data.test << endl;
-			cout << get_time_string() << " " << data.display() << endl;
-			sleep(2);
+			imaging_cycle(cameras);
+
+			//OBCData data;
+			//shared_data.m.lock();
+			//if ( shared_data.available ) {
+			//	data = shared_data.obc_data;
+			//	shared_data.available = false;
+			//}
+			//shared_data.m.unlock();
+			//if ( data.input != "" ) 
+			//{
+			//	cout << "read: " << data.input << endl;
+			//	cout << get_time_string() << " " << data.display() << endl;
+			//}
+			//sleep(2);
 		}
 
 		terminate_cameras(cameras, get_time_string());

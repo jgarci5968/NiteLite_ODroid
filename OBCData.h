@@ -37,6 +37,9 @@ public:
 
 	void parseField(string field, int pos);
 	string display();
+	string getTimeString();
+	string getGPSPos();
+	string getIMU();
 };
 
 
@@ -45,6 +48,7 @@ struct SharedData
 {
 	mutex m;
 	OBCData obc_data;
+	bool available;		// Flag indicating data is available in shared data buffer
 };
 
 extern SharedData shared_data;
