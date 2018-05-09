@@ -176,23 +176,24 @@ void take_exposures(CBaslerUsbInstantCameraArray &cameras, int exposure_time, in
 		data = shared_data.obc_data;
 		shared_data.m.unlock();
 		
-		string timestr = data.getTimeString();
+		string obc_time = data.getTimeString();
+		string odroid_time = get_time_string();
 
 		if ( cameras[idx].GrabOne(1000, ptrGrabResult) )
 		{
 			// The pylon grab result smart pointer classes provide a cast operator to the IImage
 			// interface. This makes it possible to pass a grab result directly to the
 			// function that saves an image to disk.
-			gcstring gc_filename = create_filename(timestr, idx, exposure_time, serial_number, seq, format);
+			gcstring gc_filename = create_filename(obc_time, idx, exposure_time, serial_number, seq, format);
 			CImagePersistence::Save(format, gc_filename, ptrGrabResult);
-			cout << timestr << ", " << idx << ", " << serial_number << ", " << exposure_time << ", " << seq;
-			cout << ", t=" << internal_temp << ", " << gc_filename;
+			cout << odroid_time << ", " << obc_time << ", " << idx << ", " << serial_number << ", " << exposure_time << ", " << seq;
+			cout << ", " << internal_temp << ", " << gc_filename;
 			cout << ", " << data.getGPSPos() << ", " << data.getIMU() << endl;
 		}
 		else
 		{
-			cout << timestr << ", " << idx << ", " << serial_number << ", " << exposure_time << ", " << seq;
-			cout << ", t=" << internal_temp << ", grab failed" << endl;
+			cout << odroid_time << ", " << obc_time << ", " << idx << ", " << serial_number << ", " << exposure_time << ", " << seq;
+			cout << ", " << internal_temp << ", grab failed" << endl;
 		}
 	}
 }
@@ -259,19 +260,6 @@ int main(int argc, char* argv[])
 		while ( true )
 		{
 			imaging_cycle(cameras);
-
-			//OBCData data;
-			//shared_data.m.lock();
-			//if ( shared_data.available ) {
-			//	data = shared_data.obc_data;
-			//	shared_data.available = false;
-			//}
-			//shared_data.m.unlock();
-			//if ( data.input != "" ) 
-			//{
-			//	cout << "read: " << data.input << endl;
-			//	cout << get_time_string() << " " << data.display() << endl;
-			//}
 			//sleep(2);
 		}
 
