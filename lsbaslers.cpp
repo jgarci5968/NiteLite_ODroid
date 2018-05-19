@@ -44,8 +44,8 @@ void detect_cameras(CBaslerUsbInstantCameraArray &cameras)
 			cameras[i].PixelFormat.SetValue(PixelFormat_BayerRG12);
 
 			cerr << "Camera " << cameras[i].GetDeviceInfo().GetFullName();
-			cerr << "sn: " << cameras[i].GetDeviceInfo().GetSerialNumber();
-			cerr << "detected" << endl;
+			cerr << " sn: " << cameras[i].GetDeviceInfo().GetSerialNumber();
+			cerr << " detected" << endl;
 		}
 	}
 	else
