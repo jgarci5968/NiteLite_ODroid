@@ -15,6 +15,7 @@
 #include <cstdio>
 #include <ctime>
 #include <cerrno>
+#include <fcntl.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -38,9 +39,8 @@ using namespace Basler_UsbCameraParams;
 
 
 string dev_path = "/dev/ttyUSB0";
-string image_dir = "/home/odroid/Pictures/";
+string image_dir = "/media/odroid/NITELITE1/FlightImages/";
 string camera_dir[3];
-int CameraID = 0;
 
 
 // Create a formatted string from the current system time
@@ -90,16 +90,14 @@ int initialize_cameras(CBaslerUsbInstantCameraArray &cameras, string timestr)
 }
 
 
-// Check for existence of image directories and create if not there.
-// This uses global variable "image_dir".
-// Return value: 0 - directory initialization succeeded
-//		-1 - directory initialization failed
-int initialize_image_dirs(CBaslerUsbInstantCameraArray &cameras, string timestr)
+// Check for existence of top level image_dir and create if not there.
+int check_image_dir(string timestr)
 {
+	// Make sure image_dir contains a trailing '/'
 	if ( image_dir.at(image_dir.length() - 1) != '/' )
 		image_dir += '/';
-	
-	// Check for top level image dir
+
+	// Test for existence of image_dir
 	FILE* fp = fopen(image_dir.c_str(), "r");
 	if ( fp == NULL )
 	{
@@ -107,10 +105,15 @@ int initialize_image_dirs(CBaslerUsbInstantCameraArray &cameras, string timestr)
 	}
 	else
 	{
-		cerr << timestr << " Image directory exists: " << image_dir << endl;
 		fclose(fp);
 	}
+}
 
+
+// Check for the existence of the camera image directories and create if not there.
+// This uses global variable "image_dir".
+void initialize_image_dirs(CBaslerUsbInstantCameraArray &cameras, string timestr)
+{
 	// Check for camera directories
 	for ( int i = 0; i < cameras.GetSize(); i++ )
 	{
@@ -118,7 +121,7 @@ int initialize_image_dirs(CBaslerUsbInstantCameraArray &cameras, string timestr)
 		dirpath << image_dir << cameras[i].GetDeviceInfo().GetSerialNumber() << "/";
 		camera_dir[i] = dirpath.str();
 
-		fp = fopen(camera_dir[i].c_str(), "r");
+		FILE* fp = fopen(camera_dir[i].c_str(), "r");
 		if ( fp == NULL )
 		{
 			// Camera directory doesn't exist, so create it
@@ -146,7 +149,8 @@ void terminate_cameras(CBaslerUsbInstantCameraArray &cameras, string timestr)
 {
 	for ( int i = 0; i < cameras.GetSize(); i++ )
 		cameras[i].Close();
-	cerr << timestr << " Terminated cameras" << endl;
+
+	cerr << timestr << " Cameras terminated" << endl;
 }
 
 
@@ -154,7 +158,7 @@ void terminate_cameras(CBaslerUsbInstantCameraArray &cameras, string timestr)
 gcstring create_filename(string timestr, int cameraID, int exposure, string sn, int seq, EImageFileFormat format)
 {
 	ostringstream filename;
-	filename << camera_dir[cameraID] << timestr << "_" << exposure << "_" << seq;
+	filename << camera_dir[cameraID] << timestr << "_" << cameraID << "_" << exposure << "_" << seq;
 	filename << (( format == ImageFileFormat_Tiff )? ".tiff" : ".raw");
 	return gcstring(filename.str().c_str());
 }
@@ -171,19 +175,18 @@ void take_exposures(CBaslerUsbInstantCameraArray &cameras, int exposure_time, in
 		double internal_temp = cameras[idx].DeviceTemperature.GetValue();
 		cameras[idx].ExposureTime.SetValue(exposure_time * 1000); // in microseconds
 
+		// Get most recent OBC data from the shared buffer
 		OBCData data;
 		shared_data.m.lock();
 		data = shared_data.obc_data;
 		shared_data.m.unlock();
 		
+		// Strings for OBC time and Odroid time
 		string obc_time = data.getTimeString();
 		string odroid_time = get_time_string();
 
 		if ( cameras[idx].GrabOne(1000, ptrGrabResult) )
 		{
-			// The pylon grab result smart pointer classes provide a cast operator to the IImage
-			// interface. This makes it possible to pass a grab result directly to the
-			// function that saves an image to disk.
 			gcstring gc_filename = create_filename(obc_time, idx, exposure_time, serial_number, seq, format);
 			CImagePersistence::Save(format, gc_filename, ptrGrabResult);
 			cout << odroid_time << ", " << obc_time << ", " << idx << ", " << serial_number << ", " << exposure_time << ", " << seq;
@@ -213,56 +216,114 @@ void imaging_cycle(CBaslerUsbInstantCameraArray &cameras)
 
 void usage(char* argv[])
 {
-	cout << "usage: " << argv[0] << " [directory path] [device path]" << endl;
+	cout << "Usage: " << argv[0] << " [OPTIONS] [directory path] [device path]" << endl;
+	cout << "Options:" << endl;
+	cout << "  -h    Display command line usage (this message)" << endl;
+	cout << "  -d    Daemon mode (use for flight operations)" << endl;
+	cout << "Defaults:" << endl;
+	cout << "  [directory path] = " << image_dir << endl;
+	cout << "  [device path] = " << dev_path << endl;
 	exit(-1);
+}
+
+
+// Convert process to a daemon.
+void daemonize()
+{
+	// Fork a child process
+	pid_t pid = fork();
+	if ( pid == -1 )
+		throw system_error{errno, system_category(), " fork() failed"};
+	else if ( pid != 0 )
+		// Parent process exits
+		exit(EXIT_SUCCESS);
+
+	// Create new session and process group
+	if ( setsid() == -1 )
+		throw system_error{errno, system_category(), " setsid() failed"};
+
+	// Change working directory to root directory.
+	if ( chdir("/") == -1 )
+		throw system_error{errno, system_category(), " chdir() failed"};
+
+	// Close open file descriptors.
+	for ( int i = 0; i < 3; i++ )
+		close(i);
+
+	// Any errors in opening the log files (e.g. image_dir not specified properly)
+	// will not be logged because we just closed the stderr fd.
+
+	// Redirect stdin to /dev/null
+	open("/dev/null", O_RDWR);
+
+	// Redirect stdout to image_dir/image.log
+	if ( open((image_dir + "image.log").c_str(), O_WRONLY | O_CREAT, S_IRWXU | S_IRWXG | S_IRWXO) < 0 )
+		throw system_error{errno, system_category(), image_dir + "image.log"};
+
+	// Redirect stderr to image_dir/error.log
+	if ( open((image_dir + "error.log").c_str(), O_WRONLY | O_CREAT, S_IRWXU | S_IRWXG | S_IRWXO) < 0 )
+		throw system_error{errno, system_category(), image_dir + "error.log"};
+
+	cerr << get_time_string() << " Entering daemon mode." << endl;
 }
 
 
 int main(int argc, char* argv[])
 {
 	// Check command line parameters
-	if ( argc > 2 )
+	bool id_set = false;
+	bool daemon = false;
+	for ( int i = 1; i < argc; i++ )
 	{
-		// Get directory path and USB device path parameters
-		if ( string("-h") == argv[1] )
+		if ( i == 1 && string("-h") == argv[i] )
 			usage(argv);
+		if ( i == 1 && string("-d") == argv[i] )
+			daemon = true;
 		else
 		{
-			image_dir = argv[1];
-			dev_path = argv[2];
+			if ( !id_set )
+			{
+				image_dir = argv[i];
+				id_set = true;
+			}
+			else
+			{
+				dev_path = argv[i];
+			}
 		}
 	}
-	else if ( argc > 1 )
-	{
-		if ( string("-h") == argv[1] )
-			usage(argv);
-		else
-			image_dir = argv[1];
-	}
-
-
-	cerr << get_time_string() << " Image directory path: " << image_dir << ", USB device path: " << dev_path << endl;
-
-	// Initialize USB device and start reading data
-	FILE* fp = init_usb(dev_path, get_time_string());
-	thread t1 {read_usb, fp};
-
-	// Initialize Pylon runtime before using any Pylon methods 
-	PylonInitialize();
 
 	try
 	{
+		check_image_dir(get_time_string());
+
+		if ( daemon )
+			daemonize();
+
+		cerr << get_time_string() << " Image directory path: " << image_dir << ", USB device path: " << dev_path << endl;
+
+		// Initialize USB device and start reading data
+		FILE* fp = init_usb(dev_path, get_time_string());
+		thread t1 {read_usb, fp};
+		t1.detach();
+
+		// Initialize Pylon runtime before using any Pylon methods 
+		PylonInitialize();
+
+		// Initialize the cameras and create camera image directories
 		CBaslerUsbInstantCameraArray cameras;
 		int n = initialize_cameras(cameras, get_time_string());
 		initialize_image_dirs(cameras, get_time_string());
 
-		//for ( int count = 0; count < 1; count++ )
-		while ( true )
+		// Start the imaging cycle
+		for ( int count = 0; count < 1; count++ )
+		//while ( true )
 		{
 			imaging_cycle(cameras);
 			//sleep(2);
 		}
 
+		// Clean up
 		terminate_cameras(cameras, get_time_string());
 	}
 	catch (const GenericException &e)
@@ -278,9 +339,9 @@ int main(int argc, char* argv[])
 		exit(-1);
 	}
 
-
-	// Releases all Pylon resources.
+	// Release all Pylon resources
 	PylonTerminate();
 
+	cerr << get_time_string() << " Program terminated normally" << endl;
 	exit(0);
 }
