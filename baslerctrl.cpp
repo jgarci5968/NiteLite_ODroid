@@ -316,8 +316,8 @@ int main(int argc, char* argv[])
 		initialize_image_dirs(cameras, get_time_string());
 
 		// Start the imaging cycle
-		for ( int count = 0; count < 1; count++ )
-		//while ( true )
+		//for ( int count = 0; count < 1; count++ )
+		while ( true )
 		{
 			imaging_cycle(cameras);
 			//sleep(2);
