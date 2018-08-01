@@ -165,15 +165,15 @@ gcstring create_filename(string timestr, int cameraID, int exposure, string sn, 
 
 
 // Capture an image from each camera in the camera array
-void take_exposures(CBaslerUsbInstantCameraArray &cameras, int exposure_time, int seq, EImageFileFormat format)
+void take_exposures(CBaslerUsbInstantCamera &camera, int exposure_time, int stacks, int cameraNum, EImageFileFormat format)
 {
 	CGrabResultPtr ptrGrabResult;
 
-	for(int idx = 0; idx < cameras.GetSize(); idx++)
+	for(int idx = 0; idx < stacks; idx++)
 	{
-		string serial_number = cameras[idx].GetDeviceInfo().GetSerialNumber().c_str();
-		double internal_temp = cameras[idx].DeviceTemperature.GetValue();
-		cameras[idx].ExposureTime.SetValue(exposure_time * 1000); // in microseconds
+		string serial_number = camera.GetDeviceInfo().GetSerialNumber().c_str();
+		double internal_temp = camera.DeviceTemperature.GetValue();
+		camera.ExposureTime.SetValue(exposure_time * 1000); // in microseconds
 
 		// Get most recent OBC data from the shared buffer
 		OBCData data;
@@ -185,17 +185,17 @@ void take_exposures(CBaslerUsbInstantCameraArray &cameras, int exposure_time, in
 		string obc_time = data.getTimeString();
 		string odroid_time = get_time_string();
 
-		if ( cameras[idx].GrabOne(1000, ptrGrabResult) )
+		if ( camera.GrabOne(1000, ptrGrabResult) )
 		{
-			gcstring gc_filename = create_filename(obc_time, idx, exposure_time, serial_number, seq, format);
+			gcstring gc_filename = create_filename(obc_time, cameraNum, exposure_time, serial_number, idx, format);
 			CImagePersistence::Save(format, gc_filename, ptrGrabResult);
-			cout << odroid_time << ", " << obc_time << ", " << idx << ", " << serial_number << ", " << exposure_time << ", " << seq;
+			cout << odroid_time << ", " << obc_time << ", " << cameraNum << ", " << serial_number << ", " << exposure_time << ", " << idx;
 			cout << ", " << internal_temp << ", " << gc_filename;
 			cout << ", " << data.getGPSPos() << ", " << data.getIMU() << endl;
 		}
 		else
 		{
-			cout << odroid_time << ", " << obc_time << ", " << idx << ", " << serial_number << ", " << exposure_time << ", " << seq;
+			cout << odroid_time << ", " << obc_time << ", " << cameraNum << ", " << serial_number << ", " << exposure_time << ", " << idx;
 			cout << ", " << internal_temp << ", grab failed" << endl;
 		}
 	}
@@ -205,12 +205,14 @@ void take_exposures(CBaslerUsbInstantCameraArray &cameras, int exposure_time, in
 // Take exposures for one imaging cycle consisting of 5 raw images at 50ms and one TIFF image at 100ms.
 void imaging_cycle(CBaslerUsbInstantCameraArray &cameras)
 {
-	take_exposures(cameras, 50, 0, ImageFileFormat_Raw);
-	take_exposures(cameras, 50, 1, ImageFileFormat_Raw);
-	take_exposures(cameras, 50, 2, ImageFileFormat_Raw);
-	take_exposures(cameras, 50, 3, ImageFileFormat_Raw);
-	take_exposures(cameras, 50, 4, ImageFileFormat_Raw);
-	take_exposures(cameras, 100, 0, ImageFileFormat_Tiff);
+	for(int idx = 0; idx < cameras.GetSize(); idx++)
+	{
+		take_exposures(cameras[idx], 50, 5, idx, ImageFileFormat_Raw);
+	}
+	for(int idx = 0; idx < cameras.GetSize(); idx++)
+	{
+		take_exposures(cameras[idx], 100, 1, idx, ImageFileFormat_Tiff);
+	}
 }
 
 
