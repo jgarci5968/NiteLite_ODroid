@@ -86,6 +86,9 @@ int initialize_cameras(CBaslerUsbInstantCameraArray &cameras, string timestr)
 			cerr << " configured" << endl;
 		}
 	}
+	else
+		cerr << timestr << " No cameras detected" << endl;
+
 	return i;
 }
 
@@ -222,6 +225,7 @@ void usage(char* argv[])
 	cout << "Options:" << endl;
 	cout << "  -h    Display command line usage (this message)" << endl;
 	cout << "  -d    Daemon mode (use for flight operations)" << endl;
+	cout << "  -n    No OBC mode (use for ground testing without OBC)" << endl;
 	cout << "Defaults:" << endl;
 	cout << "  [directory path] = " << image_dir << endl;
 	cout << "  [device path] = " << dev_path << endl;
@@ -275,12 +279,16 @@ int main(int argc, char* argv[])
 	// Check command line parameters
 	bool id_set = false;
 	bool daemon = false;
+	bool obc_mode = true;
+
 	for ( int i = 1; i < argc; i++ )
 	{
 		if ( i == 1 && string("-h") == argv[i] )
 			usage(argv);
-		if ( i == 1 && string("-d") == argv[i] )
+		if ( string("-d") == argv[i] )
 			daemon = true;
+		else if ( string("-n") == argv[i] )
+			obc_mode = false;
 		else
 		{
 			if ( !id_set )
@@ -294,6 +302,8 @@ int main(int argc, char* argv[])
 			}
 		}
 	}
+	cerr << get_time_string() << " Daemon mode " << (daemon? "enabled" : "disabled");
+	cerr << ", OBC mode " << (obc_mode? "enabled" : "disabled") << endl;
 
 	try
 	{
@@ -304,29 +314,37 @@ int main(int argc, char* argv[])
 
 		cerr << get_time_string() << " Image directory path: " << image_dir << ", USB device path: " << dev_path << endl;
 
-		// Initialize USB device and start reading data
-		FILE* fp = init_usb(dev_path, get_time_string());
-		thread t1 {read_usb, fp};
-		t1.detach();
+		if ( obc_mode )
+		{
+			// Initialize USB device and start reading data
+			cerr << get_time_string() << " Connecting to OBC" << endl;
+			FILE* fp = init_usb(dev_path, get_time_string());
+			thread t1 {read_usb, fp};
+			t1.detach();
+		}
 
 		// Initialize Pylon runtime before using any Pylon methods 
+		cerr << get_time_string() << " Initializing Pylon" << endl;
 		PylonInitialize();
 
 		// Initialize the cameras and create camera image directories
 		CBaslerUsbInstantCameraArray cameras;
 		int n = initialize_cameras(cameras, get_time_string());
-		initialize_image_dirs(cameras, get_time_string());
-
-		// Start the imaging cycle
-		//for ( int count = 0; count < 1; count++ )
-		while ( true )
+		if ( n > 0 )
 		{
-			imaging_cycle(cameras);
-			//sleep(2);
-		}
+			initialize_image_dirs(cameras, get_time_string());
 
-		// Clean up
-		terminate_cameras(cameras, get_time_string());
+			// Start the imaging cycle
+			//for ( int count = 0; count < 1; count++ )
+			while ( true )
+			{
+				imaging_cycle(cameras);
+				//sleep(2);
+			}
+
+			// Clean up
+			terminate_cameras(cameras, get_time_string());
+		}
 	}
 	catch (const GenericException &e)
 	{
