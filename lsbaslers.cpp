@@ -39,13 +39,20 @@ void detect_cameras(CBaslerUsbInstantCameraArray &cameras)
 		it = lstDevices.begin();
 		for ( it = lstDevices.begin(); it != lstDevices.end(); ++it, ++i )
 		{
-			cameras[i].Attach(tlFactory.CreateDevice(*it));
-			cameras[i].Open();
-			cameras[i].PixelFormat.SetValue(PixelFormat_BayerRG12);
+			try
+			{
+				cameras[i].Attach(tlFactory.CreateDevice(*it));
+				cameras[i].Open();
+				cameras[i].PixelFormat.SetValue(PixelFormat_BayerRG12);
 
-			cerr << "Camera " << cameras[i].GetDeviceInfo().GetFullName();
-			cerr << " sn: " << cameras[i].GetDeviceInfo().GetSerialNumber();
-			cerr << " detected" << endl;
+				cerr << "Camera " << cameras[i].GetDeviceInfo().GetFullName();
+				cerr << " sn: " << cameras[i].GetDeviceInfo().GetSerialNumber();
+				cerr << " detected" << endl;
+			}
+			catch (const GenericException &e)
+			{
+				cerr << "Exception " << e.what() << endl;
+			}
 		}
 	}
 	else
