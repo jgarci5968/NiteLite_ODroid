@@ -279,7 +279,7 @@ int main(int argc, char* argv[])
 	// Check command line parameters
 	bool id_set = false;
 	bool daemon = false;
-	bool obc_mode = true;
+	shared_data.obc_data.obc_mode = true;
 
 	for ( int i = 1; i < argc; i++ )
 	{
@@ -288,7 +288,7 @@ int main(int argc, char* argv[])
 		if ( string("-d") == argv[i] )
 			daemon = true;
 		else if ( string("-n") == argv[i] )
-			obc_mode = false;
+			shared_data.obc_data.obc_mode = false;
 		else
 		{
 			if ( !id_set )
@@ -303,7 +303,11 @@ int main(int argc, char* argv[])
 		}
 	}
 	cerr << get_time_string() << " Daemon mode " << (daemon? "enabled" : "disabled");
-	cerr << ", OBC mode " << (obc_mode? "enabled" : "disabled") << endl;
+	cerr << ", OBC mode ";
+	if ( shared_data.obc_data.obc_mode )
+		cerr << "enabled, timecodes are from OBC" << endl;
+	else
+		cerr << "disabled, timecodes are from Odroid" << endl;
 
 	try
 	{
@@ -314,7 +318,7 @@ int main(int argc, char* argv[])
 
 		cerr << get_time_string() << " Image directory path: " << image_dir << ", USB device path: " << dev_path << endl;
 
-		if ( obc_mode )
+		if ( shared_data.obc_data.obc_mode )
 		{
 			// Initialize USB device and start reading data
 			cerr << get_time_string() << " Connecting to OBC" << endl;

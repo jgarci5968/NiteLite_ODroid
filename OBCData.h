@@ -14,6 +14,7 @@ const int MAX_FIELDS=19;
 class OBCData
 {
 public:
+	bool obc_mode;	// Flag indicating whether or not OBC is available.
 	string input;	// Input string as read
 	long ms;	// OBC internal time in milliseconds
 	int yy;		// Two digit year from GPS

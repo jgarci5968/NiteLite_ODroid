@@ -16,6 +16,7 @@
 #include <cstdio>
 #include <cerrno>
 #include <cctype>
+#include <ctime>
 #include <unistd.h>
 
 // Local includes
@@ -173,13 +174,32 @@ string OBCData::display()
 string OBCData::getTimeString()
 {
 	ostringstream output_line;
-	output_line << yy;
-	output_line << setw(2) << setfill('0') << mm;
-	output_line << setw(2) << setfill('0') << dd << "_";
-	output_line << setw(2) << setfill('0') << hh;
-	output_line << setw(2) << setfill('0') << min;
-	output_line << setw(2) << setfill('0') << ss << "_";
-	output_line << ms;
+	if ( obc_mode )
+	{
+		output_line << yy;
+		output_line << setw(2) << setfill('0') << mm;
+		output_line << setw(2) << setfill('0') << dd << "_";
+		output_line << setw(2) << setfill('0') << hh;
+		output_line << setw(2) << setfill('0') << min;
+		output_line << setw(2) << setfill('0') << ss << "_";
+		output_line << ms;
+	}
+	else
+	{
+		// OBC not available, so generate time string from local time
+		time_t rawtime;
+		struct tm* timeinfo;
+
+		time(&rawtime);
+		timeinfo = localtime(&rawtime);
+		output_line << timeinfo->tm_year + 1900;
+		output_line << setw(2) << setfill('0') << timeinfo->tm_mon;
+		output_line << setw(2) << setfill('0') << timeinfo->tm_mday << "_";
+		output_line << setw(2) << setfill('0') << timeinfo->tm_hour;
+		output_line << setw(2) << setfill('0') << timeinfo->tm_min;
+		output_line << setw(2) << setfill('0') << timeinfo->tm_sec << "_";
+		output_line << clock();
+	}
 	return output_line.str();
 }
 

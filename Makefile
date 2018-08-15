@@ -5,6 +5,7 @@
 NAME := NiteLite_115
 MULTI := NiteLite_115_multi
 BASLERCTRL := baslerctrl
+BASLERTEST := baslertest
 LSBASLER := lsbaslers
 HANDLEUSB := handleusb
 OBCDATATEST := OBCDataTest
@@ -28,7 +29,10 @@ $(NAME): $(NAME).o
 $(MULTI): $(MULTI).o
 	$(LD) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
-$(BASLERCTRL): $(BASLERCTRL).o OBCData.o
+$(BASLERCTRL): $(BASLERCTRL).o OBCData.o 
+	$(LD) $(LDFLAGS) -o $@ $^ $(LDLIBS)
+
+$(BASLERTEST): $(BASLERTEST).o OBCData.o
 	$(LD) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
 $(LSBASLER): $(LSBASLER).o
@@ -37,7 +41,7 @@ $(LSBASLER): $(LSBASLER).o
 $(HANDLEUSB): $(HANDLEUSB).o
 	$(LD) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
-$(OBCDATATEST): $(OBCDATATEST).o OBCData.o
+$(OBCDATATEST): $(OBCDATATEST).o OBCData.o 
 	$(LD) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
 .cpp.o:
