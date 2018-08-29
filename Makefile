@@ -32,9 +32,6 @@ $(MULTI): $(MULTI).o
 $(BASLERCTRL): $(BASLERCTRL).o OBCData.o 
 	$(LD) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
-$(BASLERTEST): $(BASLERTEST).o OBCData.o
-	$(LD) $(LDFLAGS) -o $@ $^ $(LDLIBS)
-
 $(LSBASLER): $(LSBASLER).o
 	$(LD) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
