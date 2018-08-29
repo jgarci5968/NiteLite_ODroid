@@ -39,7 +39,7 @@ using namespace Basler_UsbCameraParams;
 
 
 string dev_path = "/dev/ttyUSB0";
-string image_dir = "/media/odroid/NITELITE1/FlightImages/";
+string image_dir = "/media/odroid/NITELITE2/FlightImages/";
 string camera_dir[3];
 
 
@@ -188,19 +188,38 @@ void take_exposures(CBaslerUsbInstantCamera &camera, int exposure_time, int stac
 		string obc_time = data.getTimeString();
 		string odroid_time = get_time_string();
 
-		if ( camera.GrabOne(1000, ptrGrabResult) )
+		try
 		{
-			gcstring gc_filename = create_filename(obc_time, cameraNum, exposure_time, serial_number, idx, format);
-			CImagePersistence::Save(format, gc_filename, ptrGrabResult);
-			cout << odroid_time << ", " << obc_time << ", " << cameraNum << ", " << serial_number << ", " << exposure_time << ", " << idx;
-			cout << ", " << internal_temp << ", " << gc_filename;
-			cout << ", " << data.getGPSPos() << ", " << data.getIMU() << endl;
+			if ( camera.GrabOne(1000, ptrGrabResult) )
+			{
+				gcstring gc_filename = create_filename(obc_time, cameraNum, exposure_time, serial_number, idx, format);
+				CImagePersistence::Save(format, gc_filename, ptrGrabResult);
+				cout << odroid_time << ", " << obc_time << ", " << cameraNum << ", " << serial_number << ", " << exposure_time << ", " << idx;
+				cout << ", " << internal_temp << ", " << gc_filename;
+				cout << ", " << data.getGPSPos() << ", " << data.getIMU() << endl;
+			}
+			else
+			{
+				cout << odroid_time << ", " << obc_time << ", " << cameraNum << ", " << serial_number << ", " << exposure_time << ", " << idx;
+				cout << ", " << internal_temp << ", grab failed" << endl;
+				cerr << odroid_time << " grab failed" << endl;
+			}
 		}
-		else
+		catch (const TimeoutException &te)
 		{
+			// Catch timeout exception thrown from GrabOne()
 			cout << odroid_time << ", " << obc_time << ", " << cameraNum << ", " << serial_number << ", " << exposure_time << ", " << idx;
-			cout << ", " << internal_temp << ", grab failed" << endl;
+			cout << ", " << internal_temp << ", grab failed: TimeoutException" << te.what() << endl;
+			cerr << odroid_time << " TimeoutException occurred in GrabOne(): " << te.what() << endl;
 		}
+		catch (const GenericException &e)
+		{
+			// Pylon error handling.
+			cout << odroid_time << ", " << obc_time << ", " << cameraNum << ", " << serial_number << ", " << exposure_time << ", " << idx;
+			cout << ", " << internal_temp << ", grab failed: " << e.what() << endl;
+			cerr << odroid_time << " An exception occurred in take_exposures(): " << e.what() << endl;
+		}
+
 	}
 }
 
