@@ -38,6 +38,7 @@ using namespace GenApi;
 using namespace Basler_UsbCameraParams;
 
 
+// GLOBAL VARIABLES
 string dev_path = "/dev/ttyUSB0";
 string image_dir = "/media/odroid/NITELITE2/FlightImages/";
 string camera_dir[3];
@@ -201,8 +202,8 @@ void take_exposures(CBaslerUsbInstantCamera &camera, int exposure_time, int stac
 			else
 			{
 				cout << odroid_time << ", " << obc_time << ", " << cameraNum << ", " << serial_number << ", " << exposure_time << ", " << idx;
-				cout << ", " << internal_temp << ", grab failed" << endl;
-				cerr << odroid_time << " grab failed" << endl;
+				cout << ", " << internal_temp << ", grab failed: " << ptrGrabResult->GetErrorDescription() << endl;
+				cerr << odroid_time << " grab failed: " << ptrGrabResult->GetErrorDescription() << endl;
 			}
 		}
 		catch (const TimeoutException &te)
@@ -245,6 +246,7 @@ void usage(char* argv[])
 	cout << "  -h    Display command line usage (this message)" << endl;
 	cout << "  -d    Daemon mode (use for flight operations)" << endl;
 	cout << "  -n    No OBC mode (use for ground testing without OBC)" << endl;
+	cout << "  -w s  Wait for s seconds between imaging cycles (default is 5 seconds)" << endl;
 	cout << "Defaults:" << endl;
 	cout << "  [directory path] = " << image_dir << endl;
 	cout << "  [device path] = " << dev_path << endl;
@@ -298,6 +300,7 @@ int main(int argc, char* argv[])
 	// Check command line parameters
 	bool id_set = false;
 	bool daemon = false;
+	int cycle_delay = 5;
 	shared_data.obc_data.obc_mode = true;
 
 	for ( int i = 1; i < argc; i++ )
@@ -308,6 +311,8 @@ int main(int argc, char* argv[])
 			daemon = true;
 		else if ( string("-n") == argv[i] )
 			shared_data.obc_data.obc_mode = false;
+		else if ( string("-w") == argv[i] )
+			cycle_delay = atoi(argv[++i]);
 		else
 		{
 			if ( !id_set )
@@ -324,9 +329,10 @@ int main(int argc, char* argv[])
 	cerr << get_time_string() << " Daemon mode " << (daemon? "enabled" : "disabled");
 	cerr << ", OBC mode ";
 	if ( shared_data.obc_data.obc_mode )
-		cerr << "enabled, timecodes are from OBC" << endl;
+		cerr << "enabled, timecodes are from OBC";
 	else
-		cerr << "disabled, timecodes are from Odroid" << endl;
+		cerr << "disabled, timecodes are from Odroid";
+	cerr << ", imaging cycle delay = " << cycle_delay << endl;
 
 	try
 	{
@@ -362,7 +368,7 @@ int main(int argc, char* argv[])
 			while ( true )
 			{
 				imaging_cycle(cameras);
-				//sleep(2);
+				sleep(cycle_delay);
 			}
 
 			// Clean up
