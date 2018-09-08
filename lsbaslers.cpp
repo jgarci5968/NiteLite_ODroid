@@ -1,10 +1,6 @@
-//	NiteLite_115.cpp
-//	This program performs one image capture cycle using the Basler USB camera.
-//	An image capture cycle consists of a sequence of images taken with varying
-//	exposures. Both raw and TIFF versions of the images are saved to a specified
-//	directory and named based on the time the image was taken, the exposure, the
-//	image number in the sequence, and the camera ID. Metadata for each image is
-//	also logged to the standard output.
+//	lsbaslers.cpp
+//	This program lists the Basler cameras attached to the Odroid and displays
+//	the device name and serial number.
 
 // System includes
 #include <iostream>
