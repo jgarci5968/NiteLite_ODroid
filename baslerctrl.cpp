@@ -19,6 +19,7 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
 #include <dirent.h>
 
 // Pylon API header files
@@ -295,6 +296,45 @@ void daemonize()
 }
 
 
+// This function forks a child process to operate the Basler cameras and then
+// calls wait() to monitor the child. If the child process should exit, the
+// termination status is written to the error log and a new child is forked.
+// The parent process should never return from this function.
+void monitor_child()
+{
+	while (true)
+	{
+		// Fork a child process
+		pid_t pid = fork();
+		if ( pid == -1 )
+			throw system_error{errno, system_category(), " monitor_child(): fork() failed"};
+		else if ( pid == 0 )
+		{
+			// Child process continues and operates Basler
+			cerr << get_time_string() << " monitor_child(): child process forked" << endl;
+			break;
+		}
+
+		// Wait for status of child
+		int wstatus;
+		pid = wait(&wstatus);
+		if ( pid == -1 )
+			throw system_error{errno, system_category(), " monitor_child(): wait() failed"};
+
+		cerr << get_time_string() << " monitor_child(): child ";
+		if ( WIFEXITED(wstatus) )
+			cerr << "exited, status=" << WEXITSTATUS(wstatus) << endl;
+		else if ( WIFSIGNALED(wstatus) )
+			cerr << "killed by signal " << WTERMSIG(wstatus) << endl;
+		else if ( WIFSTOPPED(wstatus) )
+			cerr << "stopped by signal " << WSTOPSIG(wstatus) << endl;
+		else if ( WIFCONTINUED(wstatus) )
+			cerr << "continued" << endl;
+	}
+
+}
+
+
 int main(int argc, char* argv[])
 {
 	// Check command line parameters
@@ -339,7 +379,10 @@ int main(int argc, char* argv[])
 		check_image_dir(get_time_string());
 
 		if ( daemon )
+		{
 			daemonize();
+			monitor_child();
+		}
 
 		cerr << get_time_string() << " Image directory path: " << image_dir << ", USB device path: " << dev_path << endl;
 
