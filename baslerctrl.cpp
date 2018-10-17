@@ -212,14 +212,18 @@ void take_exposures(CBaslerUsbInstantCamera &camera, int exposure_time, int stac
 			// Catch timeout exception thrown from GrabOne()
 			cout << odroid_time << ", " << obc_time << ", " << cameraNum << ", " << serial_number << ", " << exposure_time << ", " << idx;
 			cout << ", " << internal_temp << ", grab failed: TimeoutException" << te.what() << endl;
+			cout.flush();
 			cerr << odroid_time << " TimeoutException occurred in GrabOne(): " << te.what() << endl;
+			cerr.flush();
 		}
 		catch (const GenericException &e)
 		{
 			// Pylon error handling.
 			cout << odroid_time << ", " << obc_time << ", " << cameraNum << ", " << serial_number << ", " << exposure_time << ", " << idx;
 			cout << ", " << internal_temp << ", grab failed: " << e.what() << endl;
-			cerr << odroid_time << " An exception occurred in take_exposures(): " << e.what() << endl;
+			cout.flush();
+			cerr << odroid_time << " An exception occurred in GrabOne() or CImagePersistence::Save(): " << e.what() << endl;
+			cerr.flush();
 		}
 
 	}
@@ -231,11 +235,28 @@ void imaging_cycle(CBaslerUsbInstantCameraArray &cameras)
 {
 	for(int idx = 0; idx < cameras.GetSize(); idx++)
 	{
-		take_exposures(cameras[idx], 50, 5, idx, ImageFileFormat_Raw);
+		try
+		{
+			take_exposures(cameras[idx], 50, 5, idx, ImageFileFormat_Raw);
+		}
+		catch (const GenericException &e)
+		{
+			cerr << get_time_string << " An exception occurred in take_exposures(): " << e.what() << endl;
+			cerr.flush();
+		}
+
 	}
 	for(int idx = 0; idx < cameras.GetSize(); idx++)
 	{
-		take_exposures(cameras[idx], 100, 1, idx, ImageFileFormat_Tiff);
+		try
+		{
+			take_exposures(cameras[idx], 100, 1, idx, ImageFileFormat_Tiff);
+		}
+		catch (const GenericException &e)
+		{
+			cerr << get_time_string << " An exception occurred in take_exposures(): " << e.what() << endl;
+			cerr.flush();
+		}
 	}
 }
 
@@ -285,11 +306,11 @@ void daemonize()
 	open("/dev/null", O_RDWR);
 
 	// Redirect stdout to image_dir/image.log
-	if ( open((image_dir + "image.log").c_str(), O_WRONLY | O_CREAT, S_IRWXU | S_IRWXG | S_IRWXO) < 0 )
+	if ( open((image_dir + "image.log").c_str(), O_WRONLY | O_CREAT | O_APPEND, S_IRWXU | S_IRWXG | S_IRWXO) < 0 )
 		throw system_error{errno, system_category(), image_dir + "image.log"};
 
 	// Redirect stderr to image_dir/error.log
-	if ( open((image_dir + "error.log").c_str(), O_WRONLY | O_CREAT, S_IRWXU | S_IRWXG | S_IRWXO) < 0 )
+	if ( open((image_dir + "error.log").c_str(), O_WRONLY | O_CREAT | O_APPEND, S_IRWXU | S_IRWXG | S_IRWXO) < 0 )
 		throw system_error{errno, system_category(), image_dir + "error.log"};
 
 	cerr << get_time_string() << " Entering daemon mode." << endl;
@@ -407,7 +428,6 @@ int main(int argc, char* argv[])
 			initialize_image_dirs(cameras, get_time_string());
 
 			// Start the imaging cycle
-			//for ( int count = 0; count < 1; count++ )
 			while ( true )
 			{
 				imaging_cycle(cameras);
