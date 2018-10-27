@@ -55,7 +55,6 @@ string get_time_string()
 	timeinfo = localtime(&rawtime);
 
 	char buffer[80];
-	//strftime(buffer, sizeof(buffer), "%y%m%d_%H%M%S", timeinfo);
 	strftime(buffer, sizeof(buffer), "%b %d %X", timeinfo);
 	return string(buffer);
 }
@@ -63,7 +62,7 @@ string get_time_string()
 
 // Enumerate the connected cameras and initialize each one.
 // Return value: number of cameras initialized
-int initialize_cameras(CBaslerUsbInstantCameraArray &cameras, string timestr)
+int initialize_cameras(CBaslerUsbInstantCameraArray &cameras)
 {
 	CTlFactory& tlFactory = CTlFactory::GetInstance();
 	DeviceInfoList_t lstDevices;
@@ -72,31 +71,40 @@ int initialize_cameras(CBaslerUsbInstantCameraArray &cameras, string timestr)
 	// Find and configure camera resources
 	if ( tlFactory.EnumerateDevices(lstDevices) > 0 )
 	{
-		cerr << timestr << " Found " << lstDevices.size() << " camera" << ((lstDevices.size() > 1)? "s" : "") << endl;
+		cerr << get_time_string() << " Found " << lstDevices.size() << " camera" << ((lstDevices.size() > 1)? "s" : "") << endl;
 		cameras.Initialize(lstDevices.size());
 
 		DeviceInfoList_t::const_iterator it;
 		it = lstDevices.begin();
 		for ( it = lstDevices.begin(); it != lstDevices.end(); ++it, ++i )
 		{
-			cameras[i].Attach(tlFactory.CreateDevice(*it));
-			cameras[i].Open();
-			cameras[i].PixelFormat.SetValue(PixelFormat_BayerRG12);
+			try
+			{
+				cameras[i].Attach(tlFactory.CreateDevice(*it));
+				cerr << get_time_string() << " attached" << endl;
+				cameras[i].Open();
+				cerr << get_time_string() << " opened" << endl;
+				cameras[i].PixelFormat.SetValue(PixelFormat_BayerRG12);
 
-			cerr << timestr << " Camera " << cameras[i].GetDeviceInfo().GetFullName();
-			cerr << " sn: " << cameras[i].GetDeviceInfo().GetSerialNumber();
-			cerr << " configured" << endl;
+				cerr << get_time_string() << " Camera " << cameras[i].GetDeviceInfo().GetFullName();
+				cerr << " sn: " << cameras[i].GetDeviceInfo().GetSerialNumber();
+				cerr << " configured" << endl;
+			}
+			catch (const GenericException &e)
+			{
+				cerr << get_time_string() << " Exception in initialize_cameras(), camera " << i << ": " << e.what() << endl;
+			}
 		}
 	}
 	else
-		cerr << timestr << " No cameras detected" << endl;
+		cerr << get_time_string() << " No cameras detected" << endl;
 
 	return i;
 }
 
 
 // Check for existence of top level image_dir and create if not there.
-int check_image_dir(string timestr)
+int check_image_dir()
 {
 	// Make sure image_dir contains a trailing '/'
 	if ( image_dir.at(image_dir.length() - 1) != '/' )
@@ -106,7 +114,7 @@ int check_image_dir(string timestr)
 	FILE* fp = fopen(image_dir.c_str(), "r");
 	if ( fp == NULL )
 	{
-		throw system_error{errno, system_category(), timestr + " Failed to open image directory " + image_dir};
+		throw system_error{errno, system_category(), get_time_string() + " Failed to open image directory " + image_dir};
 	}
 	else
 	{
@@ -117,13 +125,21 @@ int check_image_dir(string timestr)
 
 // Check for the existence of the camera image directories and create if not there.
 // This uses global variable "image_dir".
-void initialize_image_dirs(CBaslerUsbInstantCameraArray &cameras, string timestr)
+void initialize_image_dirs(CBaslerUsbInstantCameraArray &cameras)
 {
 	// Check for camera directories
 	for ( int i = 0; i < cameras.GetSize(); i++ )
 	{
+		String_t sn = cameras[i].GetDeviceInfo().GetSerialNumber();
+		if ( String_t("N/A") == sn )
+		{
+			cerr << get_time_string() << " initialize_image_dirs(): Camera " << i << " not accessible" << endl;
+			continue;
+		}
+
 		ostringstream dirpath;
-		dirpath << image_dir << cameras[i].GetDeviceInfo().GetSerialNumber() << "/";
+		//dirpath << image_dir << cameras[i].GetDeviceInfo().GetSerialNumber() << "/";
+		dirpath << image_dir << sn << "/";
 		camera_dir[i] = dirpath.str();
 
 		FILE* fp = fopen(camera_dir[i].c_str(), "r");
@@ -133,16 +149,16 @@ void initialize_image_dirs(CBaslerUsbInstantCameraArray &cameras, string timestr
 			if ( mkdir(camera_dir[i].c_str(), S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH ) < 0 )
 			{
 				throw system_error{errno, system_category(),
-					timestr + " Failed to create camera directory " + camera_dir[i]};
+					get_time_string() + " Failed to create camera directory " + camera_dir[i]};
 			}
 			else
 			{
-				cerr << timestr << " Created camera directory: " << camera_dir[i] << endl;
+				cerr << get_time_string() << " Created camera directory: " << camera_dir[i] << endl;
 			}
 		}
 		else
 		{
-			cerr << timestr << " Camera directory exists: " << camera_dir[i] << endl;
+			cerr << get_time_string() << " Camera directory exists: " << camera_dir[i] << endl;
 			fclose(fp);
 		}
 	}
@@ -150,12 +166,12 @@ void initialize_image_dirs(CBaslerUsbInstantCameraArray &cameras, string timestr
 
 
 // Release camera resources
-void terminate_cameras(CBaslerUsbInstantCameraArray &cameras, string timestr)
+void terminate_cameras(CBaslerUsbInstantCameraArray &cameras)
 {
 	for ( int i = 0; i < cameras.GetSize(); i++ )
 		cameras[i].Close();
 
-	cerr << timestr << " Cameras terminated" << endl;
+	cerr << get_time_string() << " Cameras terminated" << endl;
 }
 
 
@@ -241,7 +257,7 @@ void imaging_cycle(CBaslerUsbInstantCameraArray &cameras)
 		}
 		catch (const GenericException &e)
 		{
-			cerr << get_time_string << " An exception occurred in take_exposures(): " << e.what() << endl;
+			cerr << get_time_string() << " An exception occurred in take_exposures(): " << e.what() << endl;
 			cerr.flush();
 		}
 
@@ -397,7 +413,7 @@ int main(int argc, char* argv[])
 
 	try
 	{
-		check_image_dir(get_time_string());
+		check_image_dir();
 
 		if ( daemon )
 		{
@@ -422,10 +438,10 @@ int main(int argc, char* argv[])
 
 		// Initialize the cameras and create camera image directories
 		CBaslerUsbInstantCameraArray cameras;
-		int n = initialize_cameras(cameras, get_time_string());
+		int n = initialize_cameras(cameras);
 		if ( n > 0 )
 		{
-			initialize_image_dirs(cameras, get_time_string());
+			initialize_image_dirs(cameras);
 
 			// Start the imaging cycle
 			while ( true )
@@ -435,7 +451,7 @@ int main(int argc, char* argv[])
 			}
 
 			// Clean up
-			terminate_cameras(cameras, get_time_string());
+			terminate_cameras(cameras);
 		}
 	}
 	catch (const GenericException &e)
