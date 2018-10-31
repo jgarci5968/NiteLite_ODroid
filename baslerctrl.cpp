@@ -81,9 +81,9 @@ int initialize_cameras(CBaslerUsbInstantCameraArray &cameras)
 			try
 			{
 				cameras[i].Attach(tlFactory.CreateDevice(*it));
-				cerr << get_time_string() << " attached" << endl;
+				cerr << get_time_string() << " attached camera " << i << endl;
 				cameras[i].Open();
-				cerr << get_time_string() << " opened" << endl;
+				cerr << get_time_string() << " opened camera " << i << endl;
 				cameras[i].PixelFormat.SetValue(PixelFormat_BayerRG12);
 
 				cerr << get_time_string() << " Camera " << cameras[i].GetDeviceInfo().GetFullName();
@@ -270,7 +270,7 @@ void imaging_cycle(CBaslerUsbInstantCameraArray &cameras)
 		}
 		catch (const GenericException &e)
 		{
-			cerr << get_time_string << " An exception occurred in take_exposures(): " << e.what() << endl;
+			cerr << get_time_string() << " An exception occurred in take_exposures(): " << e.what() << endl;
 			cerr.flush();
 		}
 	}
