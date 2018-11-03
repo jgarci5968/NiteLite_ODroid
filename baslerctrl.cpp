@@ -81,9 +81,9 @@ int initialize_cameras(CBaslerUsbInstantCameraArray &cameras)
 			try
 			{
 				cameras[i].Attach(tlFactory.CreateDevice(*it));
-				cerr << get_time_string() << " attached camera " << i << endl;
+				cerr << get_time_string() << " Attached camera: " << i << endl;
 				cameras[i].Open();
-				cerr << get_time_string() << " opened camera " << i << endl;
+				cerr << get_time_string() << " Opened camera: " << i << endl;
 				cameras[i].PixelFormat.SetValue(PixelFormat_BayerRG12);
 
 				cerr << get_time_string() << " Camera " << cameras[i].GetDeviceInfo().GetFullName();
@@ -218,6 +218,7 @@ void take_exposures(CBaslerUsbInstantCamera &camera, int exposure_time, int stac
 			}
 			else
 			{
+				// Handle grab failed error
 				cout << odroid_time << ", " << obc_time << ", " << cameraNum << ", " << serial_number << ", " << exposure_time << ", " << idx;
 				cout << ", " << internal_temp << ", grab failed: " << ptrGrabResult->GetErrorDescription() << endl;
 				cerr << odroid_time << " grab failed: " << ptrGrabResult->GetErrorDescription() << endl;
