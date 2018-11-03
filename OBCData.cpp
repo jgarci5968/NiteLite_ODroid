@@ -32,6 +32,9 @@ SharedData shared_data;
 // Attempt to open the device file and loop until successfully opened.
 FILE* init_usb(string dev_path, string timestr)
 {
+	time_t tm1;
+	time(&tm1);
+	
 	// Attempt to open USB device repeatedly until successful
 	FILE* fp;
 	while ( (fp = fopen(dev_path.c_str(), "r")) == NULL )
@@ -41,6 +44,13 @@ FILE* init_usb(string dev_path, string timestr)
 			system_error e {errno, system_category(), dev_path};
 			cerr << timestr << " " << e.what() << endl;
 		}
+		time_t tm2;
+		time(&tm2);
+		if ( 20 < difftime(tm2, tm1) )
+		{
+			throw system_error {errno, system_category(), timestr + " OBC not found on " + dev_path};
+		}
+			
 		sleep(2);
 	}
 

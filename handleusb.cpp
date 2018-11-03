@@ -8,6 +8,7 @@
 #include <cstdlib>
 #include <cerrno>
 #include <unistd.h>
+#include <ctime>
 
 using namespace std;
 
@@ -28,14 +29,23 @@ main(int argc, char* argv[])
 		exit(0);
 	}
 
+	time_t tm1, tm2;
+	time(&tm1);
 	FILE* fp;
 	while ( (fp = fopen(devPath.c_str(), "r")) == NULL )
 	{
+		ostringstream errmsg;
 		if ( errno != EBUSY && errno != ENOENT )
 		{
-			ostringstream errmsg;
 			errmsg << "errno = " << errno;
 			perror(errmsg.str().c_str());
+		}
+		time(&tm2);
+		if ( 20 < difftime(tm2, tm1) )
+		{
+			errmsg << "OBC not found on " << devPath;
+			perror(errmsg.str().c_str());
+			exit(-1);
 		}
 		sleep(2);
 	}
