@@ -250,6 +250,8 @@ void take_exposures(CBaslerUsbInstantCamera &camera, int exposure_time, int stac
 // Take exposures for one imaging cycle consisting of 5 raw images at 50ms and one TIFF image at 100ms.
 void imaging_cycle(CBaslerUsbInstantCameraArray &cameras)
 {
+	string timestring;
+
 	for(int idx = 0; idx < cameras.GetSize(); idx++)
 	{
 		try
@@ -258,7 +260,12 @@ void imaging_cycle(CBaslerUsbInstantCameraArray &cameras)
 		}
 		catch (const GenericException &e)
 		{
-			cerr << get_time_string() << " An exception occurred in take_exposures(): " << e.what() << endl;
+			timestring = get_time_string();
+			cerr << timestring << " An exception occurred in take_exposures(): " << e.what() << endl;
+			if ( cameras[idx].IsCameraDeviceRemoved() )
+			{
+				cerr << timestring << " Camera " << idx << " removed" << endl;
+			}
 			cerr.flush();
 		}
 
@@ -271,7 +278,12 @@ void imaging_cycle(CBaslerUsbInstantCameraArray &cameras)
 		}
 		catch (const GenericException &e)
 		{
-			cerr << get_time_string() << " An exception occurred in take_exposures(): " << e.what() << endl;
+			timestring = get_time_string();
+			cerr << timestring << " An exception occurred in take_exposures(): " << e.what() << endl;
+			if ( cameras[idx].IsCameraDeviceRemoved() )
+			{
+				cerr << timestring << " Camera " << idx << " removed" << endl;
+			}
 			cerr.flush();
 		}
 	}
