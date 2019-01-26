@@ -208,7 +208,7 @@ void take_exposures(CBaslerUsbInstantCamera &camera, int exposure_time, int stac
 
 		try
 		{
-			if ( camera.GrabOne(1000, ptrGrabResult) )
+			if ( camera.GrabOne(1000, ptrGrabResult) && ptrGrabResult->GrabSucceeded() )
 			{
 				gcstring gc_filename = create_filename(obc_time, cameraNum, exposure_time, serial_number, idx, format);
 				CImagePersistence::Save(format, gc_filename, ptrGrabResult);
