@@ -41,7 +41,8 @@ using namespace Basler_UsbCameraParams;
 
 // GLOBAL VARIABLES
 string dev_path = "/dev/ttyUSB0";
-string image_dir = "/media/odroid/NITELITE2/FlightImages/";
+//string image_dir = "/media/odroid/NITELITE2/FlightImages/";
+string image_dir = "/home/odroid/Pictures";
 string camera_dir[3];
 
 
