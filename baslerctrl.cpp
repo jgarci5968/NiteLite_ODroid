@@ -47,18 +47,18 @@ string camera_dir[3];
 
 
 // Create a formatted string from the current system time
-string get_time_string()
-{
-	time_t rawtime;
-	struct tm* timeinfo;
-
-	time(&rawtime);
-	timeinfo = localtime(&rawtime);
-
-	char buffer[80];
-	strftime(buffer, sizeof(buffer), "%b %d %X", timeinfo);
-	return string(buffer);
-}
+//string get_time_string()
+//{
+//	time_t rawtime;
+//	struct tm* timeinfo;
+//
+//	time(&rawtime);
+//	timeinfo = localtime(&rawtime);
+//
+//	char buffer[80];
+//	strftime(buffer, sizeof(buffer), "%b %d %X", timeinfo);
+//	return string(buffer);
+//}
 
 
 // Enumerate the connected cameras and initialize each one.
@@ -85,7 +85,14 @@ int initialize_cameras(CBaslerUsbInstantCameraArray &cameras)
 				cerr << get_time_string() << " Attached camera: " << i << endl;
 				cameras[i].Open();
 				cerr << get_time_string() << " Opened camera: " << i << endl;
+
+				// Set camera parameters
 				cameras[i].PixelFormat.SetValue(PixelFormat_BayerRG12);
+				cameras[i].DeviceLinkThroughputLimitMode.SetValue(DeviceLinkThroughputLimitMode_On);
+				int64_t DeviceLink_MinimumValue = cameras[i].DeviceLinkThroughputLimit.GetMin();
+				cameras[i].DeviceLinkThroughputLimit.SetValue(DeviceLink_MinimumValue);
+				int64_t MaxTransferSize_MaxValue = cameras[i].GetStreamGrabberParams().MaxTransferSize.GetMax();
+				cameras[i].GetStreamGrabberParams().MaxTransferSize.SetValue(MaxTransferSize_MaxValue);
 
 				cerr << get_time_string() << " Camera " << cameras[i].GetDeviceInfo().GetFullName();
 				cerr << " sn: " << cameras[i].GetDeviceInfo().GetSerialNumber();
@@ -193,9 +200,8 @@ void take_exposures(CBaslerUsbInstantCamera &camera, int exposure_time, int stac
 
 	for(int idx = 0; idx < stacks; idx++)
 	{
-		string serial_number = camera.GetDeviceInfo().GetSerialNumber().c_str();
-		double internal_temp = camera.DeviceTemperature.GetValue();
-		camera.ExposureTime.SetValue(exposure_time * 1000); // in microseconds
+		string serial_number("");
+		double internal_temp = 0;
 
 		// Get most recent OBC data from the shared buffer
 		OBCData data;
@@ -209,6 +215,10 @@ void take_exposures(CBaslerUsbInstantCamera &camera, int exposure_time, int stac
 
 		try
 		{
+			serial_number = camera.GetDeviceInfo().GetSerialNumber().c_str();
+			internal_temp = camera.DeviceTemperature.GetValue();
+			camera.ExposureTime.SetValue(exposure_time * 1000); // in microseconds
+
 			if ( camera.GrabOne(1000, ptrGrabResult) && ptrGrabResult->GrabSucceeded() )
 			{
 				gcstring gc_filename = create_filename(obc_time, cameraNum, exposure_time, serial_number, idx, format);
