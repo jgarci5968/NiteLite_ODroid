@@ -54,6 +54,7 @@ struct SharedData
 
 extern SharedData shared_data;
 
+extern string get_time_string();
 extern FILE* init_usb(string dev_path, string timestr);
 extern void read_usb(FILE* fp);
 

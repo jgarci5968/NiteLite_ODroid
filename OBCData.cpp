@@ -25,7 +25,25 @@
 // System namespace
 using namespace std;
 
+// Import from baslerctrl.cpp
+extern string get_time_string();
+
 SharedData shared_data;
+
+
+// Create a formatted string from the current system time
+string get_time_string()
+{
+	time_t rawtime;
+	struct tm* timeinfo;
+
+	time(&rawtime);
+	timeinfo = localtime(&rawtime);
+
+	char buffer[80];
+	strftime(buffer, sizeof(buffer), "%b %d %X", timeinfo);
+	return string(buffer);
+}
 
 
 // Initialize USB device.
@@ -84,37 +102,45 @@ void read_usb(FILE* fp)
 	OBCData input_data;
 
 	do {
-		c = fgetc(fp);
-		input_data.input += (char)c;
+		try
+		{
+			c = fgetc(fp);
+			input_data.input += (char)c;
 
-		if ( c == '$' )
-		{
-			// Reset input buffer
-			pos = 0;
-			input_data = OBCData();
-		}
-		else if ( c == ',' )
-		{
-			// Populate field at current position and clear field
-			input_data.parseField(field, pos);
-			pos++;
-			field = "";
-		}
-		else if ( c == ';' )
-		{
-			// Populate field at current position
-			input_data.parseField(field, pos);
-			field = "";
+			if ( c == '$' )
+			{
+				// Reset input buffer
+				pos = 0;
+				input_data = OBCData();
+			}
+			else if ( c == ',' )
+			{
+				// Populate field at current position and clear field
+				input_data.parseField(field, pos);
+				pos++;
+				field = "";
+			}
+			else if ( c == ';' )
+			{
+				// Populate field at current position
+				input_data.parseField(field, pos);
+				field = "";
 
-			// Transfer input buffer to shared data
-			shared_data.m.lock();
-			shared_data.obc_data = input_data;
-			shared_data.available = true;
-			shared_data.m.unlock();
+				// Transfer input buffer to shared data
+				shared_data.m.lock();
+				shared_data.obc_data = input_data;
+				shared_data.available = true;
+				shared_data.m.unlock();
+			}
+			else if ( isdigit(c) || c == '-' || c == '.' )
+			{
+				field += (char) c;
+			}
 		}
-		else if ( isdigit(c) || c == '-' || c == '.' )
+		catch (const exception &e)
 		{
-			field += (char) c;
+			cerr << get_time_string() << " Exception in read_usb(), pos = " << pos;
+			cerr << " field = [" << field << "] " << e.what() << endl;
 		}
 
 	} while ( c != EOF );
