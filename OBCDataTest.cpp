@@ -29,7 +29,7 @@ int main(int argc, char* argv[])
 	}
 	else
 	{
-		cout << "usage: OBCDataTest filename" << endl;
+		cerr << "usage: OBCDataTest filename" << endl;
 		exit(-1);
 	}
 
@@ -38,6 +38,9 @@ int main(int argc, char* argv[])
 	{
 		throw system_error{errno, system_category(), filename};
 	}
+
+	shared_data.obc_data.obc_mode = true;
+	cerr << "shared_data.available: " << shared_data.available << endl;
 
 	thread t1 {read_usb, fp};
 
@@ -54,7 +57,7 @@ int main(int argc, char* argv[])
 		if ( data.input != "" )
 		{
 			cout << "read: " << " " << data.input << endl;
-			//cout << "parsed: " << data.display() << endl;
+			cout << "parsed: " << data.display() << endl;
 			cout << "parsed: " << data.getTimeString() << endl;
 		}
 		//sleep(2);
