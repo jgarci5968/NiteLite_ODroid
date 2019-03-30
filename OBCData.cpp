@@ -100,16 +100,21 @@ void read_usb(FILE* fp)
 	int pos;
 	string field;
 	OBCData input_data;
+	bool discard = true;
 
 	do {
 		try
 		{
 			c = fgetc(fp);
 			input_data.input += (char)c;
+			if ( discard && c != '$' )
+				// Discard input data until next record delimiter
+				continue;
 
 			if ( c == '$' )
 			{
-				// Reset input buffer
+				// Found start of record so reset input buffer
+				discard = false;
 				pos = 0;
 				input_data = OBCData();
 			}
@@ -128,6 +133,7 @@ void read_usb(FILE* fp)
 
 				// Transfer input buffer to shared data
 				shared_data.m.lock();
+				input_data.obc_mode = shared_data.obc_data.obc_mode;
 				shared_data.obc_data = input_data;
 				shared_data.available = true;
 				shared_data.m.unlock();
@@ -141,6 +147,9 @@ void read_usb(FILE* fp)
 		{
 			cerr << get_time_string() << " Exception in read_usb(), pos = " << pos;
 			cerr << " field = [" << field << "] " << e.what() << endl;
+
+			// Ignore input until next record delimiter
+			discard = true;
 		}
 
 	} while ( c != EOF );
@@ -207,18 +216,22 @@ string OBCData::display()
 }
 
 
+// Create a string representation of the time that has the following format:
+//	YYYYMMDD_HHMMSS_NNNNNNN
+// The NNNNNNN value increases monotonically to provide a unique value during
+// the lifetime of program execution. 
 string OBCData::getTimeString()
 {
 	ostringstream output_line;
 	if ( obc_mode )
 	{
+		//output_line << "OBC";
 		output_line << yy;
 		output_line << setw(2) << setfill('0') << mm;
 		output_line << setw(2) << setfill('0') << dd << "_";
 		output_line << setw(2) << setfill('0') << hh;
 		output_line << setw(2) << setfill('0') << min;
 		output_line << setw(2) << setfill('0') << ss << "_";
-		output_line << ms;
 	}
 	else
 	{
@@ -228,14 +241,16 @@ string OBCData::getTimeString()
 
 		time(&rawtime);
 		timeinfo = localtime(&rawtime);
+		//output_line << "ODR";
 		output_line << timeinfo->tm_year + 1900;
 		output_line << setw(2) << setfill('0') << timeinfo->tm_mon;
 		output_line << setw(2) << setfill('0') << timeinfo->tm_mday << "_";
 		output_line << setw(2) << setfill('0') << timeinfo->tm_hour;
 		output_line << setw(2) << setfill('0') << timeinfo->tm_min;
 		output_line << setw(2) << setfill('0') << timeinfo->tm_sec << "_";
-		output_line << clock();
 	}
+	// Use Odroid process time to provide a unique value
+	output_line << clock();
 	return output_line.str();
 }
 
