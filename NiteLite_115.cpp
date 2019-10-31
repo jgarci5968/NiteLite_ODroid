@@ -23,7 +23,7 @@ using namespace std;
 using namespace Pylon;
 using namespace GenApi;
 using namespace Basler_UsbCameraParams;
-
+using namespace GENICAM_NAMESPACE;
 
 string filepath = "/home/odroid/Pictures/";
 int CameraID = 0;
