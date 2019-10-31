@@ -37,7 +37,7 @@ using namespace std;
 using namespace Pylon;
 using namespace GenApi;
 using namespace Basler_UsbCameraParams;
-
+using namespace GENICAM_NAMESPACE;
 
 // GLOBAL VARIABLES
 string dev_path = "/dev/ttyACM0";
